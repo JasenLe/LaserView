@@ -1,20 +1,24 @@
 #include "inc/widget.h"
 #include "inc/radarscan.h"
 
-int Widget::getWidth()
+float Widget::getWidth()
 {
     int m_Width_offset = Side_end.x;
     if (Width_offset < m_Width_offset)
         m_Width_offset = Width_offset;
     return (this->width() - (Width_offset + m_Width_offset));
 }
-int Widget::getHeight()
+float Widget::getHeight()
 {
     return (this->height() - (Side_head.y + Side_end.y));
 }
-int Widget::getDiameter()
+float Widget::getDiameter()
 {
     return i_diameter*Display_factor;
+}
+float Widget::getRadius()
+{
+    return getDiameter()/2.0;
 }
 
 QPoint Widget::getPoint(bool original)
@@ -1411,14 +1415,14 @@ QPixmap Widget::paintWidget()
     // reverse_Bcolor.setAlpha(180);
 
     float rot_angle = -90; //极坐标角度旋转
-    int LinelenAdd = 20*Display_factor;
-    int Linelength = getDiameter() / 2.0 + (LinelenAdd > 50 ? 50 : LinelenAdd);
+    float LinelenAdd = 20*Display_factor;
+    float Linelength = getRadius() + (LinelenAdd > 50 ? 50 : LinelenAdd);
     QFont font = p_painter.font();
     font.setPointSize(11);
     p_painter.setFont(font);
     int text_w =100;
     int text_h = 30;
-    int deviation = getDiameter()/2.0 + text_h/6.0;
+    float deviation = getRadius() + text_h/6.0;
     int identification_num = 12;//24
     for (int i = 0; i < identification_num; i++)
     {
@@ -1435,25 +1439,16 @@ QPixmap Widget::paintWidget()
                            getPoint().x() , getPoint().y());
 
         p_painter.setPen(QPen(reverse_Bcolor, 0.2, Qt::DashLine));
-        p_painter.drawLine(getPoint().x() + getDiameter() / 2.0 * cos(A_TO_RAD(360/(identification_num*2)*(i*2+1) + rot_angle)),
-                           getPoint().y() + getDiameter() / 2.0 * sin(A_TO_RAD(360/(identification_num*2)*(i*2+1) + rot_angle)),
+        p_painter.drawLine(getPoint().x() + getRadius() * cos(A_TO_RAD(360/(identification_num*2)*(i*2+1) + rot_angle)),
+                           getPoint().y() + getRadius() * sin(A_TO_RAD(360/(identification_num*2)*(i*2+1) + rot_angle)),
                            getPoint().x() , getPoint().y());
     }
 
-    int circle_num = 10;
-    // p_painter.setPen(QPen(Qt::gray, 0.5, Qt::DashLine));
-    p_painter.setPen(QPen(reverse_Bcolor, 0.5, Qt::DashLine));
-    for (int i = 0; i <= circle_num; i++)
-    {
-        p_painter.drawEllipse(getPoint().x() - getDiameter()*1.0*i/circle_num/ 2, getPoint().y() - getDiameter()*1.0*i/circle_num / 2,
-                                     getDiameter()*1.0*i/circle_num, getDiameter()*1.0*i/circle_num);
-    }
-
+    float Reduction_ = 15000;
     if (!m_scandata.empty())
     {
         W_DataScan mark_point;
         int Effective_num = 0;
-        float Reduction_factor = 0;
         float rememberDiff = 1000;
         QString speedValue = "Speed: ";
         QString DatasumValue = "DataNum: ";
@@ -1465,7 +1460,7 @@ QPixmap Widget::paintWidget()
             uint16_t sum = std::accumulate(line_speed.begin(), line_speed.end(), 0);
             uint16_t average = sum / line_speed.size();
 
-            Reduction_factor = getDiameter()*1.0/2/500;
+            Reduction_ = 500;
             speedValue += QString::number(m_scandata.front().speed);
             speedValue += " (";
             speedValue += QString::number(average);
@@ -1474,7 +1469,7 @@ QPixmap Widget::paintWidget()
         }
         else
         {
-            Reduction_factor = getDiameter()*1.0/2/15000;
+            Reduction_ = 15000;
             speedValue += QString::number(m_scandata.front().speed/360.0, 'f', 2);
             speedValue += "/10 Hz";
         }
@@ -1487,6 +1482,7 @@ QPixmap Widget::paintWidget()
             speedValue +=  QString::number(history_file_data.data.size());
         }
 
+        float Reduction_factor = getRadius() / Reduction_;
         p_painter.setPen(QPen(m_point_color, m_point_pixel, Qt::SolidLine));
         for (auto m : m_scandata)
         {
@@ -1518,6 +1514,8 @@ QPixmap Widget::paintWidget()
         DatasumValue += "/";
         DatasumValue += QString::number(m_scandata.size());
         text_w = 180;
+        font.setPointSize(11);
+        p_painter.setFont(font);
         p_painter.setPen(QPen(m_line_color, 2, Qt::SolidLine));
         p_painter.drawText(pixmap.width() - text_w, 20, text_w, text_h, Qt::AlignLeft, speedValue);
         p_painter.drawText(pixmap.width() - text_w, 40, text_w, text_h, Qt::AlignLeft, DatasumValue);
@@ -1525,7 +1523,7 @@ QPixmap Widget::paintWidget()
         if (Show_indicator_line)
         {
             QString ranges_Value = QString::number(mark_point.ranges_, 'f', 1);
-            QString angles_Value = QString::number(mark_point.angles_, 'f', 3);
+            QString angles_Value = QString::number(mark_point.angles_, 'f', 2);
             QString intensity_Value = QString::number(mark_point.intensity_);
             p_painter.setPen(QPen(m_line_color, 0.8, Qt::DashLine));
             p_painter.drawLine(getPoint().x(), getPoint().y(),
@@ -1555,12 +1553,35 @@ QPixmap Widget::paintWidget()
             }
             text_w =250;
             p_painter.setPen(QPen(m_line_color, 2, Qt::SolidLine));
-            QFont font = p_painter.font();
             font.setPointSize(16);
             p_painter.setFont(font);
             p_painter.drawText(getPoint().x()+target_dis*sin(target_rad) - text_w/2.0, getPoint().y()-target_dis*cos(target_rad) - text_h/2.0, text_w, text_h, Qt::AlignCenter, show_data);
         }
 
+    }
+
+    int circle_num = 10;
+    // p_painter.setPen(QPen(Qt::gray, 0.5, Qt::DashLine));
+    for (int i = 0; i <= circle_num; i++)
+    {
+        p_painter.setPen(QPen(reverse_Bcolor, 0.5, Qt::DashLine));
+        p_painter.drawEllipse(getPoint().x() - getRadius()*i/circle_num, getPoint().y() - getRadius()*i/circle_num,
+                              getDiameter()*i/circle_num, getDiameter()*i/circle_num);
+
+        if (i > 0)
+        {
+            text_w =100;
+            p_painter.setPen(QPen(reverse_Bcolor, 1, Qt::DashLine));
+            float mfsize = 3*Display_factor;
+            if (mfsize < 5)
+                mfsize = 5;
+            else if (mfsize > 25)
+                mfsize = 25;
+            font.setPointSize(mfsize);
+            p_painter.setFont(font);
+            QString mark_d = QString::number(static_cast<int>(Reduction_/circle_num*i));
+            p_painter.drawText(getPoint().x()+getRadius()*i/circle_num - text_w/2.0, getPoint().y() - text_h/2.0, text_w, text_h, Qt::AlignCenter, mark_d);
+        }
     }
 
     if (OpenedCom.isEmpty() && history_file_data.data.empty())
@@ -1574,7 +1595,7 @@ QPixmap Widget::paintWidget()
         conical_gradient.setColorAt(0, m_line_color);
         conical_gradient.setColorAt(0.2, QColor(255, 255, 255, 0));
         p_painter.setBrush(conical_gradient);
-        p_painter.drawEllipse(getPoint().x() - getDiameter() / 2.0, getPoint().y() - getDiameter() / 2.0, getDiameter(), getDiameter());
+        p_painter.drawEllipse(getPoint().x() - getRadius(), getPoint().y() - getRadius(), getDiameter(), getDiameter());
     }
 
     return pixmap;

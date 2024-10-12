@@ -19,7 +19,7 @@
 #include "IniFile.h"
 #include "datadisplaywindow.h"
 
-#define MY_WINDOWTITLE "LB laser 3.0 (16)"
+#define MY_WINDOWTITLE "LB laser 3.1"
 #define SOFTSC "SoftwareSettingsCache.ini"
 
 struct Send_mem_
@@ -89,9 +89,10 @@ protected slots:
     void timerTimeOut();
 
 private:
-    int getWidth();
-    int getHeight();
-    int getDiameter();
+    float getWidth();
+    float getHeight();
+    float getDiameter();
+    float getRadius();
     QPoint getPoint(bool original=false);
     void m_resizeEvent(void);
     void Resetdeviation();
