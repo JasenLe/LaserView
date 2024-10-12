@@ -1580,7 +1580,7 @@ QPixmap Widget::paintWidget()
             font.setPointSize(mfsize);
             p_painter.setFont(font);
             QString mark_d = QString::number(static_cast<int>(Reduction_/circle_num*i));
-            p_painter.drawText(getPoint().x()+getRadius()*i/circle_num - text_w/2.0, getPoint().y() - text_h/2.0, text_w, text_h, Qt::AlignCenter, mark_d);
+            p_painter.drawText(getPoint().x()+getRadius()*i/circle_num, getPoint().y(), mark_d);
         }
     }
 
