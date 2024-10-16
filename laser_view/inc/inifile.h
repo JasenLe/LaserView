@@ -11,6 +11,10 @@
 #define WWIDTH  "width"
 #define WHEIGHT "height"
 
+#define P_COOR "Polar_coordinates"
+#define CWCCW  "p_flag"
+#define ROTATE "rot_angle"
+
 #define SEND   "Send"
 #define SDATA  "S_data"
 

@@ -9,11 +9,12 @@ Widget::Widget(QWidget *parent)
     this->layout()->setContentsMargins(Side_head.x, Side_head.y, Side_end.x, Side_end.y);
     this->layout()->setSpacing(0); // 设置布局间没有空白间隔
 
+    //安装目录地址
     appPath = QCoreApplication::applicationDirPath();
-    // qDebug() << appPath;
     SetInitFromMemory();
 
     serialPort = new QSerialPort(this);
+    //接收数据接口
     connect(serialPort, &QSerialPort::readyRead, this, [this] () {
         QByteArray data = serialPort->readAll();
         // 处理接收到的数据
@@ -35,6 +36,7 @@ Widget::Widget(QWidget *parent)
         }
     });
 
+    //页面定时刷新
     timer = new QTimer();
     connect(timer, SIGNAL(timeout()), this, SLOT(timerTimeOut()));
     timer->start(10);
@@ -50,6 +52,7 @@ Widget::~Widget()
     delete timer;
     delete ui;
 }
+
 
 bool Widget::DeleteMemoryFile(void)
 {
@@ -100,29 +103,37 @@ void Widget::SetInitFromMemory(void)
     ui->labelSnText->setText("none");
     // ui->RadarScan->setStyleSheet("background-image: url(:/image/LB.png); background-repeat: no-repeat; background-position: center;");
 
-    /***************************************************/
+    /************************从ini文件查询用户自定义设置***************************/
+    //主窗口size
     Widget_width = getIniint(WWIDTH, Widget_width);
     Widget_height = getIniint(WHEIGHT, Widget_height);
     this->resize(Widget_width,Widget_height);
+    //点云点像素大小
     m_point_pixel = getInifloat(PPIXEL, m_point_pixel);
+    //显示测量线及相关信息
     Show_indicator_line = (bool)getIniint(INDICATORLINE, (int)Show_indicator_line);
     Show_indicator_distance = (bool)getIniint(LINEDIS, (int)Show_indicator_distance);
     Show_indicator_angle = (bool)getIniint(LINEANGLE, (int)Show_indicator_angle);
     Show_indicator_confidence = (bool)getIniint(LINECONF, (int)Show_indicator_confidence);
+    //滤波
     Enable_filte = (bool)getIniint(FLITER, (int)Enable_filte);
     filter_select = (uint16_t)getIniint(FLITER_all, (int)filter_select);
+    //点云颜色
     int pointColor = getIniint(PCOLOR, m_point_color.red()*1000000+m_point_color.green()*1000+m_point_color.blue());
     m_point_color.setRed(pointColor/1000000);
     m_point_color.setGreen((pointColor%1000000)/1000);
     m_point_color.setBlue(pointColor%1000);
+    //测量线颜色
     int lineColor = getIniint(LINECOLOR, m_line_color.red()*1000000+m_line_color.green()*1000+m_line_color.blue());
     m_line_color.setRed(lineColor/1000000);
     m_line_color.setGreen((lineColor%1000000)/1000);
     m_line_color.setBlue(lineColor%1000);
+    //画布背景颜色
     int backgroundColor = getIniint(BCOLOR, m_background_color.red()*1000000+m_background_color.green()*1000+m_background_color.blue());
     m_background_color.setRed(backgroundColor/1000000);
     m_background_color.setGreen((backgroundColor%1000000)/1000);
     m_background_color.setBlue(backgroundColor%1000);
+    //控制区背景颜色
     int CSbackgroundColor = getIniint(CSCOLOR, CS_background_color.red()*1000000+CS_background_color.green()*1000+CS_background_color.blue());
     CS_background_color.setRed(CSbackgroundColor/1000000);
     CS_background_color.setGreen((CSbackgroundColor%1000000)/1000);
@@ -132,6 +143,10 @@ void Widget::SetInitFromMemory(void)
     BandBox_Idx = getIniint(BAND, BandBox_Idx);
     ui->DeviceBox->setCurrentIndex(Devicebox_Idx);
     ui->bandBox->setCurrentIndex(BandBox_Idx);
+    //极坐标设置
+    p_flag = getIniint(CWCCW, p_flag);
+    rot_angle = getIniint(ROTATE, rot_angle);
+    //发送输入框历史信息导入
     string S_data;
     S_data = getString(SDATA, S_data);
     for (size_t i = 0, si = 0, ei = 0; i < S_data.size(); i++)

@@ -336,6 +336,17 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
             /************************Background************************/
             QAction *action_Background_color = menu.addAction("Background color");
             action_Background_color->setCheckable(false);
+
+            /************************Indicator line items************************/
+            QMenu *action_polar_coordinates = menu.addMenu("Polar coordinates items");
+            QAction *polar_clockwise = nullptr;
+            if (p_flag)
+                polar_clockwise = action_polar_coordinates->addAction("Turn to CW ↻");
+            else
+                polar_clockwise = action_polar_coordinates->addAction("Turn to CCW ↺");
+            QAction *polar_cw90 = action_polar_coordinates->addAction("Rotate 90°CW ↷");
+            QAction *polar_ccw90 = action_polar_coordinates->addAction("Rotate 90°CCW ↶");
+
             /************************Show indicator line************************/
             QAction *action_indicator = menu.addAction("Show indicator line");
             action_indicator->setCheckable(true); // 设置为可勾选
@@ -593,6 +604,26 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                     m_background_color = color;
                     setIniint(BCOLOR, m_background_color.red()*1000000+m_background_color.green()*1000+m_background_color.blue());
                 }
+            }
+            /*****************************************************************************************/
+            else if (polar_clockwise !=nullptr && selectedAction == polar_clockwise)
+            {
+                p_flag = !p_flag;
+                setIniint(CWCCW, (int)p_flag);
+            }
+            else if (polar_cw90 !=nullptr && selectedAction == polar_cw90)
+            {
+                rot_angle += 90;
+                if (rot_angle > 180)
+                    rot_angle -= 360;
+                setIniint(ROTATE, rot_angle);
+            }
+            else if (polar_ccw90 !=nullptr && selectedAction == polar_ccw90)
+            {
+                rot_angle -= 90;
+                if (rot_angle < -180)
+                    rot_angle += 360;
+                setIniint(ROTATE, rot_angle);
             }
             /*****************************************************************************************/
             else if (action_indicator !=nullptr && selectedAction == action_indicator)
@@ -1365,15 +1396,52 @@ void Widget::pushPoint(std::vector<W_DataScan> data)
     update();
 }
 
-void Widget::custom_drawText(QPainter *MPainter, int x, int y, int w, int h, float angle, const QString &str)
+void Widget::normal_drawText(QPainter *MPainter, float  x, float y, float w, float h, const QString &str, bool fl)
 {
-    MPainter->translate(x, y); // 移动到中心
-    MPainter->rotate(angle);
-    MPainter->translate(-x, -y); // 恢复到原来位置
-    MPainter->drawText(x-w/2.0, y-h/2.0, w, h, Qt::AlignCenter, str);
-    MPainter->translate(x, y);
-    MPainter->rotate(-angle);
-    MPainter->translate(-x, -y);
+    float x_y0 = -1, x_ym = -1, y_x0 = -1, y_xm = -1;
+    float line_rad = atan2((getPoint(fl).y() - y), (getPoint(fl).x() - x));
+
+    if (fabs(line_rad) < M_PI/2 && x <= 0)//与left边相交
+        y_x0 = (0-getPoint(fl).x()) /(x-getPoint(fl).x()) * (y-getPoint(fl).y()) + getPoint(fl).y();
+    else if (fabs(line_rad) > M_PI/2 && x >= getWidth())//与right边相交
+        y_xm = (getWidth()-getPoint(fl).x()) /(x-getPoint(fl).x()) * (y-getPoint(fl).y()) + getPoint(fl).y();
+
+    if (line_rad > 0 && line_rad < M_PI && y <= 0 )//与top边相交
+        x_y0 = (0-getPoint(fl).y()) /(y-getPoint(fl).y()) * (x-getPoint(fl).x()) + getPoint(fl).x();
+    else if (line_rad < 0 && line_rad > -M_PI && y >= getHeight())//与bottom边相交
+        x_ym = (getHeight()-getPoint(fl).y()) /(y-getPoint(fl).y()) * (x-getPoint(fl).x()) + getPoint(fl).x();
+
+    if (y_x0 >= 0 && y_x0 <= getHeight() && getPoint(fl).x() >= 0)
+        MPainter->drawText(0, y_x0 - h/2.0, w, h, Qt::AlignLeft|Qt::AlignVCenter, str);
+    else if (y_xm >= 0 && y_xm <= getHeight() && getPoint(fl).x() <= getWidth())
+        MPainter->drawText(getWidth()-w, y_xm - h/2.0,w, h, Qt::AlignRight|Qt::AlignVCenter, str);
+    else if (x_y0 >= 0 && x_y0 <= getWidth() && getPoint(fl).y() >= 0)
+        MPainter->drawText(x_y0 - w/2.0, 0,w, h, Qt::AlignTop|Qt::AlignHCenter, str);
+    else if (x_ym >= 0 && x_ym <= getWidth() && getPoint(fl).y() <= getHeight())
+        MPainter->drawText(x_ym - w/2.0, getHeight()-h,w, h, Qt::AlignBottom|Qt::AlignHCenter, str);
+}
+
+bool Widget::custom_drawText(QPainter *MPainter, float  x, float y, float w, float h, float angle, const QString &str)
+{
+    bool res = false;
+    if (x > 0 && x < getWidth()  && y > 0  && y < getHeight())
+    {
+        MPainter->translate(x, y); // 移动到中心
+        MPainter->rotate(angle);
+        MPainter->translate(-x, -y); // 恢复到原来位置
+        MPainter->drawText(x-w/2.0, y-h/2.0, w, h, Qt::AlignCenter, str);
+        MPainter->translate(x, y);
+        MPainter->rotate(-angle);
+        MPainter->translate(-x, -y);
+        res = true;
+    }
+    else
+    {
+        normal_drawText(MPainter, x, y, w, h, str);
+        res = false;
+    }
+
+    return res;
 }
 
 QPixmap Widget::paintWidget_time()
@@ -1393,7 +1461,7 @@ QPixmap Widget::paintWidget_time()
     QFont font = p_painter_time.font();
     font.setPointSize(8);
     p_painter_time.setFont(font);
-    p_painter_time.setPen(QPen(fontColor, 2, Qt::DashLine));
+    p_painter_time.setPen(QPen(fontColor, 2, Qt::SolidLine));
     p_painter_time.drawText(pixmap_time.width() - text_w, -2, text_w, text_h, Qt::AlignLeft, timeStr);
 
     return pixmap_time;
@@ -1414,34 +1482,44 @@ QPixmap Widget::paintWidget()
     reverse_Bcolor.setRgb(abs(m_background_color.red()-128), abs(m_background_color.green()-128), abs(m_background_color.blue()-128));
     // reverse_Bcolor.setAlpha(180);
 
-    float rot_angle = -90; //极坐标角度旋转
     float LinelenAdd = 20*Display_factor;
     float Linelength = getRadius() + (LinelenAdd > 50 ? 50 : LinelenAdd);
     QFont font = p_painter.font();
-    font.setPointSize(11);
+    font.setPointSize(9);
     p_painter.setFont(font);
     int text_w =100;
     int text_h = 30;
     float deviation = getRadius() + text_h/6.0;
-    int identification_num = 12;//24
+    int identification_num = 36;//24
+    bool outside_flag = false;
     for (int i = 0; i < identification_num; i++)
     {
-        p_painter.setPen(QPen(m_line_color, 2, Qt::SolidLine));
+        p_painter.setPen(QPen(m_line_color, 1, Qt::SolidLine));
         QString A_Text(QString::number(360/identification_num*i));
         A_Text += "°";
-        custom_drawText(&p_painter, getPoint().x() + deviation*cos(A_TO_RAD(360/identification_num*i + rot_angle)),
-                                    getPoint().y() + deviation*sin(A_TO_RAD(360/identification_num*i + rot_angle)),
-                                    text_w, text_h, (360/identification_num*i + (rot_angle + 90)), A_Text);
+        bool m_flag = p_flag ? custom_drawText(&p_painter, getPoint().x() - deviation*cos(A_TO_RAD(360/identification_num*i - rot_angle - 180)),
+                                    getPoint().y() + deviation*sin(A_TO_RAD(360/identification_num*i - rot_angle - 180)),
+                                    text_w, text_h, (-360/identification_num*i + (rot_angle + 90)), A_Text)
+                             : custom_drawText(&p_painter, getPoint().x() + deviation*cos(A_TO_RAD(360/identification_num*i + rot_angle)),
+                                               getPoint().y() + deviation*sin(A_TO_RAD(360/identification_num*i + rot_angle)),
+                                               text_w, text_h, (360/identification_num*i + (rot_angle + 90)), A_Text);
+        if (!outside_flag)
+            outside_flag = m_flag;
 
-        p_painter.setPen(QPen(reverse_Bcolor, 0.5, Qt::DashLine));
+        p_painter.setPen(QPen(reverse_Bcolor, 0.5, Qt::DotLine));
         p_painter.drawLine(getPoint().x() + Linelength * cos(A_TO_RAD(360/identification_num*i + rot_angle)),
                            getPoint().y() + Linelength * sin(A_TO_RAD(360/identification_num*i + rot_angle)),
                            getPoint().x() , getPoint().y());
 
-        p_painter.setPen(QPen(reverse_Bcolor, 0.2, Qt::DashLine));
-        p_painter.drawLine(getPoint().x() + getRadius() * cos(A_TO_RAD(360/(identification_num*2)*(i*2+1) + rot_angle)),
-                           getPoint().y() + getRadius() * sin(A_TO_RAD(360/(identification_num*2)*(i*2+1) + rot_angle)),
-                           getPoint().x() , getPoint().y());
+        // p_painter.setPen(QPen(reverse_Bcolor, 0.2, Qt::DotLine));
+        // p_painter.drawLine(getPoint().x() + getRadius() * cos(A_TO_RAD(360/(identification_num*2)*(i*2+1) + rot_angle)),
+        //                    getPoint().y() + getRadius() * sin(A_TO_RAD(360/(identification_num*2)*(i*2+1) + rot_angle)),
+        //                    getPoint().x() , getPoint().y());
+    }
+    if (!outside_flag && !(getPoint().x() > 0 && getPoint().x() < getWidth()  && getPoint().y() > 0  && getPoint().y() < getHeight()))
+    {
+        p_painter.setPen(QPen(m_line_color, 2, Qt::SolidLine));
+        normal_drawText(&p_painter, getPoint().x(),getPoint().y(), text_w, text_h, "P", true);
     }
 
     float Reduction_ = 15000;
@@ -1488,7 +1566,8 @@ QPixmap Widget::paintWidget()
         {
             // int drawpointX = getPoint().x()+m.y()*Reduction_factor;
             // int drawpointY = getPoint().y()-m.x()*Reduction_factor;
-            int drawpointX = getPoint().x() + (m.x()*Reduction_factor*cos(A_TO_RAD(rot_angle)) - m.y()*Reduction_factor*sin(A_TO_RAD(rot_angle)));
+            int drawpointX = p_flag ? getPoint().x() - (m.x()*Reduction_factor*cos(A_TO_RAD(rot_angle)) - m.y()*Reduction_factor*sin(A_TO_RAD(rot_angle)))
+                                    : getPoint().x() + (m.x()*Reduction_factor*cos(A_TO_RAD(rot_angle)) - m.y()*Reduction_factor*sin(A_TO_RAD(rot_angle)));
             int drawpointY = getPoint().y() + (m.x()*Reduction_factor*sin(A_TO_RAD(rot_angle)) + m.y()*Reduction_factor*cos(A_TO_RAD(rot_angle)));
             float new_rad = A_TO_RAD(m.angles_+rot_angle);
             while (new_rad > M_PI)
@@ -1555,23 +1634,29 @@ QPixmap Widget::paintWidget()
             p_painter.setPen(QPen(m_line_color, 2, Qt::SolidLine));
             font.setPointSize(16);
             p_painter.setFont(font);
-            p_painter.drawText(getPoint().x()+target_dis*sin(target_rad) - text_w/2.0, getPoint().y()-target_dis*cos(target_rad) - text_h/2.0, text_w, text_h, Qt::AlignCenter, show_data);
+            p_painter.drawText(getPoint().x()+target_dis*cos(A_TO_RAD(rot_angle)+target_rad) - text_w/2.0,
+                               getPoint().y()+target_dis*sin(A_TO_RAD(rot_angle)+target_rad) - text_h/2.0,
+                               text_w, text_h, Qt::AlignCenter, show_data);
         }
 
     }
 
     int circle_num = 10;
+    if (Reduction_ == 15000)
+        circle_num = 15;
     // p_painter.setPen(QPen(Qt::gray, 0.5, Qt::DashLine));
     for (int i = 0; i <= circle_num; i++)
     {
-        p_painter.setPen(QPen(reverse_Bcolor, 0.5, Qt::DashLine));
+        if (i == circle_num)
+            p_painter.setPen(QPen(reverse_Bcolor, 0.5, Qt::SolidLine));
+        else
+            p_painter.setPen(QPen(reverse_Bcolor, 0.5, Qt::DotLine));
         p_painter.drawEllipse(getPoint().x() - getRadius()*i/circle_num, getPoint().y() - getRadius()*i/circle_num,
                               getDiameter()*i/circle_num, getDiameter()*i/circle_num);
 
         if (i > 0)
         {
-            text_w =100;
-            p_painter.setPen(QPen(reverse_Bcolor, 1, Qt::DashLine));
+            p_painter.setPen(QPen(reverse_Bcolor, 1, Qt::SolidLine));
             float mfsize = 3*Display_factor;
             if (mfsize < 5)
                 mfsize = 5;
@@ -1580,7 +1665,8 @@ QPixmap Widget::paintWidget()
             font.setPointSize(mfsize);
             p_painter.setFont(font);
             QString mark_d = QString::number(static_cast<int>(Reduction_/circle_num*i));
-            p_painter.drawText(getPoint().x()+getRadius()*i/circle_num, getPoint().y(), mark_d);
+            p_painter.drawText(getPoint().x()+getRadius()*cos(A_TO_RAD(rot_angle))*i/circle_num,
+                               getPoint().y()+getRadius()*sin(A_TO_RAD(rot_angle))*i/circle_num, mark_d);
         }
     }
 
@@ -1589,13 +1675,32 @@ QPixmap Widget::paintWidget()
         m_scandata.clear();
         line_speed.clear();
 
-        // p_painter.setPen(QPen(Qt::gray, 0.5, Qt::DashLine));
+        QString w_text = "欢迎使用";
         p_painter.setPen(QPen(reverse_Bcolor, 0.8, Qt::SolidLine));
-        QConicalGradient conical_gradient(getPoint(), (2*M_PI - d_angle) / (2*M_PI) * 720);//定义圆心和渐变的角度
-        conical_gradient.setColorAt(0, m_line_color);
-        conical_gradient.setColorAt(0.2, QColor(255, 255, 255, 0));
-        p_painter.setBrush(conical_gradient);
+        if (p_flag)
+        {
+            w_text = "用使迎欢";
+            QConicalGradient conical_gradient(getPoint(), -(2*M_PI - d_angle) / (2*M_PI) * 720);//定义圆心和渐变的角度
+            conical_gradient.setColorAt(1, m_line_color);
+            conical_gradient.setColorAt(0.8, QColor(255, 255, 255, 0));
+            p_painter.setBrush(conical_gradient);
+        }
+        else
+        {
+            QConicalGradient conical_gradient(getPoint(), (2*M_PI - d_angle) / (2*M_PI) * 720);//定义圆心和渐变的角度
+            conical_gradient.setColorAt(0, m_line_color);
+            conical_gradient.setColorAt(0.2, QColor(255, 255, 255, 0));
+            p_painter.setBrush(conical_gradient);
+        }
         p_painter.drawEllipse(getPoint().x() - getRadius(), getPoint().y() - getRadius(), getDiameter(), getDiameter());
+
+        p_painter.setPen(QPen(m_background_color, 2, Qt::SolidLine));
+        int m_f = 15*Display_factor;
+        if (m_f > 40)
+            m_f = 40;
+        font.setPointSize(m_f);
+        p_painter.setFont(font);
+        p_painter.drawText(getPoint().x()-m_f*2.7, getPoint().y()-getRadius()/circle_num*(circle_num/2+circle_num%2) -m_f/2, w_text);
     }
 
     return pixmap;
@@ -1619,6 +1724,9 @@ int Widget::getIniint(const string &key, int value)
     /*******************BACKGROUND***********************/
     else if (key.compare(BCOLOR) == 0 || key.compare(CSCOLOR) == 0)
         return m_file.ReadInt(BACKGROUND, key, value);
+    /*******************P_COOR***********************/
+    else if (key.compare(CWCCW) == 0 || key.compare(ROTATE) == 0)
+        return m_file.ReadInt(P_COOR, key, value);
     /*******************INDICATORLINE***********************/
     else if (key.compare(INDICATORLINE) == 0)
         return m_file.ReadInt(INDICATORLINE, "EN", value);
@@ -1692,6 +1800,9 @@ bool Widget::setIniint(const string &key, int value)
     /*******************BACKGROUND***********************/
     else if (key.compare(BCOLOR) == 0 || key.compare(CSCOLOR) == 0)
         m_file.WriteInt(BACKGROUND, key, value);
+    /*******************P_COOR***********************/
+    else if (key.compare(CWCCW) == 0 || key.compare(ROTATE) == 0)
+        m_file.WriteInt(P_COOR, key, value);
     /*******************INDICATORLINE***********************/
     else if (key.compare(INDICATORLINE) == 0)
         m_file.WriteInt(INDICATORLINE, "EN", value);

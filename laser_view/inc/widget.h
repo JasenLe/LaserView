@@ -43,20 +43,30 @@ public:
     ~Widget();
 
     Ui::Widget *get_ui(){ return this->ui; }
+    //初始化页面显示信息
     void SetInitFromMemory(void);
+    //清除用户自定义设置恢复默认信息
     bool DeleteMemoryFile(void);
+    //修改控制区背景颜色
     void ChangeCSBackgroundColor(QColor _color);
+    //OC按键样式
     void OCButtonColor(QColor _color, bool stu);
+    //SY按键样式
     void SYButtonColor(QColor _color, uint8_t stu);
+    //显示设备SN信息
     void setDeviceSn(const device_sn_t devSn);
     void setDeviceSn(const TYPE_LASER_ type, QString sn);
+    //检测端口接入情况
     void checkPorts();
     void DelLaserObj();
-
+    //点云放置
     void pushPoint(std::vector<W_DataScan> data);
+    //显示画布
     QPixmap paintWidget();
     QPixmap paintWidget_time();
-    void custom_drawText(QPainter *MPainter, int x, int y, int w, int h, float angle, const QString &str);
+    //描绘文案（文案角度自定义）
+    bool custom_drawText(QPainter *MPainter, float x, float y, float w, float h, float angle, const QString &str);
+    void normal_drawText(QPainter *MPainter, float  x, float y, float w, float h, const QString &str, bool fl=false);
     // double Contrast(const QColor &color1, const QColor &color2)
     // {
     //     // 计算两个颜色的对比度  L = 0.2126 * R + 0.7152 * G + 0.0722 * B
@@ -74,7 +84,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *event);
     void keyPressEvent(QKeyEvent *event);
     void contextMenuEvent(QContextMenuEvent *event);
-
+    //关闭程序
     void closeEvent(QCloseEvent *event)
     {
         setIniint(WWIDTH, this->width());
@@ -159,6 +169,8 @@ private:
     bool Show_indicator_angle{true};
     bool Show_indicator_confidence{true};
     bool Enable_filte{true};
+    bool p_flag{false};//极坐标旋转反向
+    int rot_angle{-90}; //极坐标角度旋转
     uint16_t filter_select{0x0001};
     float m_point_pixel{1.0};
     bool contextMenu_miss_flag{false};
