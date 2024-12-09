@@ -25,6 +25,11 @@ Widget::Widget(QWidget *parent)
                 if (linelaser != nullptr)
                     linelaser->DataParsing(data);
             }
+            else if (OpenenType.compare("LB_RHC") == 0)
+            {
+                if (hclidar != nullptr)
+                    hclidar->readData(data);
+            }
             else
             {
                 if (lidar != nullptr)
@@ -431,6 +436,11 @@ void Widget::DelLaserObj()
         delete lidar;
         lidar = nullptr;
     }
+    if (hclidar != nullptr)
+    {
+        delete hclidar;
+        hclidar = nullptr;
+    }
 }
 void Widget::on_Button_Open_clicked()
 {
@@ -482,6 +492,24 @@ void Widget::on_Button_Open_clicked()
                                            { this->setDeviceSn(type, sn); });
             linelaser->setDataCallback([this](std::vector<W_DataScan> data){ this->pushPoint(data); });
             linelaser->SetFilter(Enable_filte);
+        }
+        else if (OpenenType.compare("LB_RHC") == 0)
+        {
+            linegetTypeTimeOut = 0;
+            hclidar = new HCLidar();
+            hclidar->setDeviceSnCallback([this](const std::string vSn)
+                                        {
+                                            device_sn_t devSn;
+                                            devSn.id = TYPE_RADAR_other;
+                                            devSn.buff = vSn;
+                                            this->setDeviceSn(devSn);
+                                        });
+            hclidar->setDataCallback([this](std::vector<W_DataScan> data){ this->pushPoint(data); });
+
+            if (Enable_filte)
+                hclidar->SetFilter(this->filter_select);
+            else
+                hclidar->SetFilter(0);
         }
         else
         {

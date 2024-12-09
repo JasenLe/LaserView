@@ -184,6 +184,11 @@ background-color: rgb(255, 255, 255);</string>
              </item>
              <item>
               <property name="text">
+               <string>LB_RHC</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
                <string>LB_L</string>
               </property>
              </item>

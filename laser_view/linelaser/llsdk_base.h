@@ -17,6 +17,9 @@ typedef enum
 class LLSDK_BASE
 {
 public:
+    LLSDK_BASE() {};
+    ~LLSDK_BASE() = default;
+
     virtual bool initLaserScan(QSerialPort *serial) = 0;
     virtual bool StartLaserScan(QSerialPort *serial) = 0;
     virtual bool StopLaserScan(QSerialPort *serial) = 0;

@@ -13,6 +13,7 @@
 #include <QMutex>
 #include <QProcess>
 #include "radar/lpkg.h"
+#include "radar/HCbase/hclidar.h"
 #include "ui_widget.h"
 #include "comreadthread.hpp"
 #include "linelaser/llsdk.h"
@@ -65,8 +66,8 @@ public:
     QPixmap paintWidget();
     QPixmap paintWidget_time();
     //描绘文案（文案角度自定义）
-    bool custom_drawText(QPainter *MPainter, float x, float y, float w, float h, float angle, const QString &str);
-    void normal_drawText(QPainter *MPainter, float  x, float y, float w, float h, const QString &str, bool fl=false);
+    bool custom_drawText(QPainter *MPainter, float x, float y, float w, float h, float angle, float font_s, const QString &str);
+    void normal_drawText(QPainter *MPainter, float  x, float y, float w, float h, float font_s, const QString &str, bool fl=false);
     // double Contrast(const QColor &color1, const QColor &color2)
     // {
     //     // 计算两个颜色的对比度  L = 0.2126 * R + 0.7152 * G + 0.0722 * B
@@ -128,6 +129,7 @@ private:
     QSerialPort *serialPort = nullptr;
     LPkg *lidar = nullptr;
     LLSDK *linelaser = nullptr;
+    HCLidar *hclidar = nullptr;
     DataDisplayWindow *window = nullptr;
     const DataScan_point Side_head{0, 0};
     const DataScan_point Side_end{0, 10};

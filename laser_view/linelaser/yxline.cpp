@@ -244,6 +244,12 @@ bool YXLine::StartLaserScan(QSerialPort *serial)
 
 bool YXLine::StopLaserScan(QSerialPort *serial)
 {
+    // int s = 10;
+    // while (--s >0)
+    // {
+    //     sendCmd(serial, YXLI_CMD_STOP);
+    //     MySleep(50);
+    // }
     return sendCmd(serial, YXLI_CMD_STOP);
 }
 

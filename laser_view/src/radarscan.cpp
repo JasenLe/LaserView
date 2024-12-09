@@ -173,8 +173,6 @@ void Widget::mouseReleaseEvent(QMouseEvent *event)
                 drag_L.start.x != -1 && drag_L.start.y != -1 &&
                 drag_L.end.x != -1 && drag_L.end.y != -1)
             {
-                drag_L = {.start={-1, -1}, .end={-1, -1}, .flag=false};
-
                 if (move_miss_flag)
                 {
                     move_miss_flag = false;
@@ -191,6 +189,7 @@ void Widget::mouseReleaseEvent(QMouseEvent *event)
                 measure_point.y = init_y;
             }
         }
+        drag_L = {.start={-1, -1}, .end={-1, -1}, .flag=false};
     }
     if (event->button() == Qt::RightButton)
     {
@@ -207,8 +206,6 @@ void Widget::mouseReleaseEvent(QMouseEvent *event)
                 float now_diff_x = drag_R.end.x - drag_R.start.x;
                 float now_diff_y = drag_R.end.y - drag_R.start.y;
 
-                drag_R = {.start={-1, -1}, .end={-1, -1}, .flag=false};
-
                 if (hypot(fabs(now_diff_y), fabs(now_diff_x)) > 2)
                 {
                     contextMenu_miss_flag = true;
@@ -218,13 +215,23 @@ void Widget::mouseReleaseEvent(QMouseEvent *event)
                     measure_point.y += now_diff_y;
                 }
                 else
+                {
                     contextMenu_miss_flag = false;
+                }
             }
             else
             {
                 contextMenu_miss_flag = false;
             }
         }
+        else
+        {
+            contextMenu_miss_flag = false;
+        }
+
+        drag_R = {.start={-1, -1}, .end={-1, -1}, .flag=false};
+        if (!contextMenu_miss_flag)
+            drag_L = {.start={-1, -1}, .end={-1, -1}, .flag=false};
     }
     // QWidget::mouseReleaseEvent(event);
 }
@@ -403,7 +410,7 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
             QAction *filter_items_Wander = nullptr;
             QAction *filter_items_Shadows = nullptr;
             QAction *filter_items_Median = nullptr;
-            if (OpenenType.compare("LB_R0") == 0 || OpenenType.compare("LB_R1") == 0)
+            if (OpenenType.compare("LB_R0") == 0 || OpenenType.compare("LB_R1") || OpenenType.compare("LB_RHC") == 0)
             {
                 /************************filter_items************************/
                 QMenu *action_filter_items =  menu.addMenu("Filter setting items");
@@ -564,6 +571,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                 if (linelaser != nullptr)
                     m_message = linelaser->GetOtherMessage();
             }
+            else if (OpenenType.compare("LB_RHC") == 0)
+            {
+                if (hclidar != nullptr)
+                    m_message = QString::fromStdString(hclidar->GetOtherMessage());
+            }
             else
             {
                 if (lidar != nullptr)
@@ -681,12 +693,16 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                     action_filter->setChecked(true);
                     if (lidar != nullptr)
                         lidar->SetFilter(this->filter_select);
+                    if (hclidar != nullptr)
+                        hclidar->SetFilter(this->filter_select);
                 }
                 else
                 {
                     action_filter->setChecked(false);
                     if (lidar != nullptr)
                         lidar->SetFilter(0);
+                    if (hclidar != nullptr)
+                        hclidar->SetFilter(0);
                 }
 
                 if (linelaser != nullptr)
@@ -709,6 +725,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
 
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
+
                 setIniint(FLITER_all, (int)this->filter_select);
             }
             else if (filter_items_bilateral != nullptr && selectedAction == filter_items_bilateral)
@@ -727,6 +748,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                     lidar->SetFilter(this->filter_select);
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
+
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
 
                 setIniint(FLITER_all, (int)this->filter_select);
             }
@@ -747,6 +773,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
 
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
+
                 setIniint(FLITER_all, (int)this->filter_select);
             }
             else if (filter_items_intensity != nullptr && selectedAction == filter_items_intensity)
@@ -765,6 +796,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                     lidar->SetFilter(this->filter_select);
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
+
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
 
                 setIniint(FLITER_all, (int)this->filter_select);
             }
@@ -785,6 +821,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
 
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
+
                 setIniint(FLITER_all, (int)this->filter_select);
             }
             else if (filter_items_Noise != nullptr && selectedAction == filter_items_Noise)
@@ -803,6 +844,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                     lidar->SetFilter(this->filter_select);
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
+
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
 
                 setIniint(FLITER_all, (int)this->filter_select);
             }
@@ -823,6 +869,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
 
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
+
                 setIniint(FLITER_all, (int)this->filter_select);
             }
             else if (filter_items_Wander != nullptr && selectedAction == filter_items_Wander)
@@ -841,6 +892,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                     lidar->SetFilter(this->filter_select);
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
+
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
 
                 setIniint(FLITER_all, (int)this->filter_select);
             }
@@ -861,6 +917,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
 
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
+
                 setIniint(FLITER_all, (int)this->filter_select);
             }
             else if (filter_items_Median != nullptr && selectedAction == filter_items_Median)
@@ -879,6 +940,11 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
                     lidar->SetFilter(this->filter_select);
                 else if (!Enable_filte)
                     lidar->SetFilter(0);
+
+                if (hclidar != nullptr && Enable_filte)
+                    hclidar->SetFilter(this->filter_select);
+                else if (!Enable_filte)
+                    hclidar->SetFilter(0);
 
                 setIniint(FLITER_all, (int)this->filter_select);
             }
@@ -1142,10 +1208,13 @@ void Widget::timerTimeOut()
         last_text = now_text;
     }
 
-    d_angle += M_PI / 720;
-    if (d_angle >= 2*M_PI)
+    if (!drag_L.flag)
     {
-        d_angle = 0;
+        d_angle += M_PI / 720 * (p_flag ? 1 : -1);
+        if (d_angle > 2*M_PI)
+            d_angle = 0;
+        if (d_angle < 0)
+            d_angle = 2*M_PI;
     }
     update();
 }
@@ -1380,6 +1449,14 @@ void Widget::pushPoint(std::vector<W_DataScan> data)
 {
     m_scandata = data;
     test_datanum++;
+
+    if (OpenenType.compare("LB_L") == 0 || OpenenType.compare("LB_LOther") == 0)
+    {
+        line_speed.push_back(m_scandata.front().speed);
+        if (line_speed.size() > 60)
+            line_speed.erase(line_speed.begin());
+    }
+
     if (save_data_mutex.tryLock())
     {
         save_temp_data.data.push_back(data);
@@ -1396,7 +1473,7 @@ void Widget::pushPoint(std::vector<W_DataScan> data)
     update();
 }
 
-void Widget::normal_drawText(QPainter *MPainter, float  x, float y, float w, float h, const QString &str, bool fl)
+void Widget::normal_drawText(QPainter *MPainter, float  x, float y, float w, float h, float font_s, const QString &str, bool fl)
 {
     float x_y0 = -1, x_ym = -1, y_x0 = -1, y_xm = -1;
     float line_rad = atan2((getPoint(fl).y() - y), (getPoint(fl).x() - x));
@@ -1411,21 +1488,86 @@ void Widget::normal_drawText(QPainter *MPainter, float  x, float y, float w, flo
     else if (line_rad < 0 && line_rad > -M_PI && y >= getHeight())//与bottom边相交
         x_ym = (getHeight()-getPoint(fl).y()) /(y-getPoint(fl).y()) * (x-getPoint(fl).x()) + getPoint(fl).x();
 
+    QFont font = MPainter->font();
+    font.setPointSize(font_s);
+    MPainter->setFont(font);
+    float dis_h = font_s*10;
+    float dis_hy = font_s*16;
+
     if (y_x0 >= 0 && y_x0 <= getHeight() && getPoint(fl).x() >= 0)
+    {
+        float dis_t = hypot(getPoint(fl).x(), getPoint(fl).y() - y_x0);
+        if (dis_t < dis_h)
+        {
+            float _f = font_s*dis_t/dis_h;
+            if (_f < 1)
+                _f = 1;
+            font.setPointSize(_f);
+            MPainter->setFont(font);
+        }
         MPainter->drawText(0, y_x0 - h/2.0, w, h, Qt::AlignLeft|Qt::AlignVCenter, str);
+    }
     else if (y_xm >= 0 && y_xm <= getHeight() && getPoint(fl).x() <= getWidth())
+    {
+        float dis_t = hypot(getPoint(fl).x() - getWidth(), getPoint(fl).y() - y_xm);
+        if (dis_t < dis_h)
+        {
+            float _f = font_s*dis_t/dis_h;
+            if (_f < 1)
+                _f = 1;
+            font.setPointSize(_f);
+            MPainter->setFont(font);
+        }
         MPainter->drawText(getWidth()-w, y_xm - h/2.0,w, h, Qt::AlignRight|Qt::AlignVCenter, str);
+    }
     else if (x_y0 >= 0 && x_y0 <= getWidth() && getPoint(fl).y() >= 0)
+    {
+        float dis_t = hypot(getPoint(fl).x() - x_y0, getPoint(fl).y());
+        if (dis_t < dis_hy)
+        {
+            float _f = font_s*dis_t/dis_hy;
+            if (_f < 1)
+                _f = 1;
+            font.setPointSize(_f);
+            MPainter->setFont(font);
+        }
         MPainter->drawText(x_y0 - w/2.0, 0,w, h, Qt::AlignTop|Qt::AlignHCenter, str);
+    }
     else if (x_ym >= 0 && x_ym <= getWidth() && getPoint(fl).y() <= getHeight())
+    {
+        float dis_t = hypot(getPoint(fl).x() - x_ym, getPoint(fl).y() - getHeight());
+        if (dis_t < dis_hy)
+        {
+            float _f = font_s*dis_t/dis_hy;
+            if (_f < 1)
+                _f = 1;
+            font.setPointSize(_f);
+            MPainter->setFont(font);
+        }
         MPainter->drawText(x_ym - w/2.0, getHeight()-h,w, h, Qt::AlignBottom|Qt::AlignHCenter, str);
+    }
 }
 
-bool Widget::custom_drawText(QPainter *MPainter, float  x, float y, float w, float h, float angle, const QString &str)
+bool Widget::custom_drawText(QPainter *MPainter, float  x, float y, float w, float h, float angle, float font_s, const QString &str)
 {
     bool res = false;
+
+    QFont font = MPainter->font();
+    font.setPointSize(font_s);
+    MPainter->setFont(font);
+
     if (x > 0 && x < getWidth()  && y > 0  && y < getHeight())
     {
+        float dis_h = font_s*16;
+        float dis_t = hypot(getPoint().x() - x, getPoint().y() - y);
+        if (dis_t < dis_h)
+        {
+            float _f = font_s*dis_t/dis_h;
+            if (_f < 1)
+                _f = 1;
+            font.setPointSize(_f);
+            MPainter->setFont(font);
+        }
         MPainter->translate(x, y); // 移动到中心
         MPainter->rotate(angle);
         MPainter->translate(-x, -y); // 恢复到原来位置
@@ -1437,7 +1579,7 @@ bool Widget::custom_drawText(QPainter *MPainter, float  x, float y, float w, flo
     }
     else
     {
-        normal_drawText(MPainter, x, y, w, h, str);
+        normal_drawText(MPainter, x, y, w, h, font_s, str);
         res = false;
     }
 
@@ -1499,10 +1641,10 @@ QPixmap Widget::paintWidget()
         A_Text += "°";
         bool m_flag = p_flag ? custom_drawText(&p_painter, getPoint().x() - deviation*cos(A_TO_RAD(360/identification_num*i - rot_angle - 180)),
                                     getPoint().y() + deviation*sin(A_TO_RAD(360/identification_num*i - rot_angle - 180)),
-                                    text_w, text_h, (-360/identification_num*i + (rot_angle + 90)), A_Text)
+                                    text_w, text_h, (-360/identification_num*i + (rot_angle + 90)), 9, A_Text)
                              : custom_drawText(&p_painter, getPoint().x() + deviation*cos(A_TO_RAD(360/identification_num*i + rot_angle)),
                                                getPoint().y() + deviation*sin(A_TO_RAD(360/identification_num*i + rot_angle)),
-                                               text_w, text_h, (360/identification_num*i + (rot_angle + 90)), A_Text);
+                                               text_w, text_h, (360/identification_num*i + (rot_angle + 90)), 9, A_Text);
         if (!outside_flag)
             outside_flag = m_flag;
 
@@ -1519,8 +1661,19 @@ QPixmap Widget::paintWidget()
     if (!outside_flag && !(getPoint().x() > 0 && getPoint().x() < getWidth()  && getPoint().y() > 0  && getPoint().y() < getHeight()))
     {
         p_painter.setPen(QPen(m_line_color, 2, Qt::SolidLine));
-        normal_drawText(&p_painter, getPoint().x(),getPoint().y(), text_w, text_h, "P", true);
+        float O_pdis = hypot(getPoint().x()-getPoint(true).x(), getPoint().y()-getPoint(true).y());
+        normal_drawText(&p_painter, getPoint().x(),getPoint().y(), text_w, text_h, 9, "P["+QString::number(O_pdis, 'f', 0)+"]", true);
     }
+
+    p_painter.setPen(QPen(m_line_color, 1, Qt::SolidLine));
+    if (getPoint().x() < 0)
+        p_painter.drawLine(0, 0, 0, getHeight());
+    else if (getPoint().x() > getWidth())
+        p_painter.drawLine(getWidth(), 0, getWidth(), getHeight());
+    if (getPoint().y() < 0)
+        p_painter.drawLine(0, 0, getWidth(), 0);
+    else if (getPoint().y() > getHeight())
+        p_painter.drawLine(0, getHeight(), getWidth(), getHeight());
 
     float Reduction_ = 15000;
     if (!m_scandata.empty())
@@ -1532,11 +1685,9 @@ QPixmap Widget::paintWidget()
         QString DatasumValue = "DataNum: ";
         if (OpenenType.compare("LB_L") == 0 || OpenenType.compare("LB_LOther") == 0)
         {
-            line_speed.push_back(m_scandata.front().speed);
-            if (line_speed.size() > 100)
-                line_speed.erase(line_speed.begin());
-            uint16_t sum = std::accumulate(line_speed.begin(), line_speed.end(), 0);
-            uint16_t average = sum / line_speed.size();
+            uint16_t average = 0;
+            if (line_speed.size() > 0)
+                average = std::accumulate(line_speed.begin(), line_speed.end(), 0) / line_speed.size();
 
             Reduction_ = 500;
             speedValue += QString::number(m_scandata.front().speed);
@@ -1544,6 +1695,12 @@ QPixmap Widget::paintWidget()
             speedValue += QString::number(average);
             speedValue += ")";
             speedValue += " Hz";
+        }
+        else if (OpenenType.compare("LB_RHC") == 0)
+        {
+            Reduction_ = 15000;
+            speedValue += QString::number(m_scandata.front().speed/60.0, 'f', 2);
+            speedValue += "/6 Hz";
         }
         else
         {
@@ -1657,11 +1814,17 @@ QPixmap Widget::paintWidget()
         if (i > 0)
         {
             p_painter.setPen(QPen(reverse_Bcolor, 1, Qt::SolidLine));
-            float mfsize = 3*Display_factor;
-            if (mfsize < 5)
-                mfsize = 5;
-            else if (mfsize > 25)
-                mfsize = 25;
+            // float mfsize = 3*Display_factor;
+            // if (mfsize < 5)
+            //     mfsize = 5;
+            // else if (mfsize > 25)
+            //     mfsize = 25;
+            float mfsize = 6;
+            mfsize *= (sqrt(deviation)/20);
+            if (mfsize < 3)
+                mfsize = 3;
+            else if (mfsize > 20)
+                mfsize = 20;
             font.setPointSize(mfsize);
             p_painter.setFont(font);
             QString mark_d = QString::number(static_cast<int>(Reduction_/circle_num*i));
@@ -1677,21 +1840,20 @@ QPixmap Widget::paintWidget()
 
         QString w_text = "欢迎使用";
         p_painter.setPen(QPen(reverse_Bcolor, 0.8, Qt::SolidLine));
+        float sector = 0.2;//扇形大小
+        QConicalGradient conical_gradient(getPoint(), d_angle / (2*M_PI) * 720);//定义圆心和渐变的角度
         if (p_flag)
         {
-            w_text = "用使迎欢";
-            QConicalGradient conical_gradient(getPoint(), -(2*M_PI - d_angle) / (2*M_PI) * 720);//定义圆心和渐变的角度
+            std::reverse(w_text.begin(), w_text.end());
             conical_gradient.setColorAt(1, m_line_color);
-            conical_gradient.setColorAt(0.8, QColor(255, 255, 255, 0));
-            p_painter.setBrush(conical_gradient);
+            conical_gradient.setColorAt((1-sector), QColor(255, 255, 255, 0));
         }
         else
         {
-            QConicalGradient conical_gradient(getPoint(), (2*M_PI - d_angle) / (2*M_PI) * 720);//定义圆心和渐变的角度
             conical_gradient.setColorAt(0, m_line_color);
-            conical_gradient.setColorAt(0.2, QColor(255, 255, 255, 0));
-            p_painter.setBrush(conical_gradient);
+            conical_gradient.setColorAt(sector, QColor(255, 255, 255, 0));
         }
+         p_painter.setBrush(conical_gradient);
         p_painter.drawEllipse(getPoint().x() - getRadius(), getPoint().y() - getRadius(), getDiameter(), getDiameter());
 
         p_painter.setPen(QPen(m_background_color, 2, Qt::SolidLine));
@@ -1700,7 +1862,7 @@ QPixmap Widget::paintWidget()
             m_f = 40;
         font.setPointSize(m_f);
         p_painter.setFont(font);
-        p_painter.drawText(getPoint().x()-m_f*2.7, getPoint().y()-getRadius()/circle_num*(circle_num/2+circle_num%2) -m_f/2, w_text);
+        p_painter.drawText(getPoint().x()-m_f*2.65, getPoint().y()-getRadius()/circle_num*(circle_num/2+circle_num%2) - m_f/2.5, w_text);
     }
 
     return pixmap;

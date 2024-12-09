@@ -360,7 +360,7 @@ bool RSLine::UnpackData(const uint8_t *data, size_t len)
             if (msg.data_.size() >= 8)
             {
                 lineSensorSn = *((uint64_t *)msg.data_.data());
-                if (lineSensorSn != 0xffffffffffffffff && lineSensorSn >= 530200000000000) //530300000000000
+                if (lineSensorSn != 0xffffffffffffffff /*&& lineSensorSn >= 530200000000000*/) //530300000000000
                 {
                     intensity_need_ = true;
                     QString qStr = QString::number(lineSensorSn);

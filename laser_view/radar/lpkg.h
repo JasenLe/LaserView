@@ -45,6 +45,7 @@ typedef enum
     TYPE_RADAR_GW = 3,//光为
     TYPE_RADAR_AOBIK = 4,//奥比MS200K
     TYPE_RADAR_BZ = 5,//不止
+    TYPE_RADAR_other = 6,
 
     TYPE_RADAR_NONE = 255,
 }TYPE_RADAR_;
