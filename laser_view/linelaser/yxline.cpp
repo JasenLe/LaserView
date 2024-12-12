@@ -15,8 +15,9 @@ bool YXLine::ParsingPackage(const uint8_t *data, size_t len)
     uint16_t sample_lens = 0;
     bool has_device_header = false;
     uint8_t  *packageBuffer = (uint8_t *)&package;
-    for (auto currentByte : data_buf_)
+    for ( ; recvPos < data_buf_.size(); )
     {
+        uint8_t currentByte = data_buf_[recvPos];
         switch (recvPos)
         {
         case 0:
