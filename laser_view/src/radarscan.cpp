@@ -410,7 +410,7 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
             QAction *filter_items_Wander = nullptr;
             QAction *filter_items_Shadows = nullptr;
             QAction *filter_items_Median = nullptr;
-            if (OpenenType.compare("LB_R0") == 0 || OpenenType.compare("LB_R1") || OpenenType.compare("LB_RHC") == 0)
+            if (OpenenType.compare("LB_R0") == 0 || OpenenType.compare("LB_R1") == 0 || OpenenType.compare("LB_RHC") == 0)
             {
                 /************************filter_items************************/
                 QMenu *action_filter_items =  menu.addMenu("Filter setting items");
