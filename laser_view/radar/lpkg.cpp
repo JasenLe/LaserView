@@ -28,7 +28,6 @@ bool LPkg::DeviceOpen(QSerialPort *cmd_port)
     if (close_again_flag_)
     {
         init_info_flag_ = false;
-        open_again_flag_ = true;
         close_again_flag_ = false;
     }
     ret = cmd_port->write(sendData);
@@ -55,8 +54,8 @@ bool LPkg::DeviceClose(QSerialPort *cmd_port)
     sendData.append(0x31);
     sendData.append(0xF2);
     init_info_flag_ = true;
-    open_again_flag_ = false;
     close_again_flag_ = true;
+    lidar_type_ = TYPE_RADAR_NONE;
     ret = cmd_port->write(sendData);
     if (ret < HEAD_LEN + DATA_LEN +3)
     {
@@ -81,20 +80,25 @@ void LPkg::DataParsing(const QByteArray &data)
             if (DevSnFun)
                 DevSnFun(device_sn_);
             lidar_type_ = device_sn_.id;
-            open_again_flag_ = false;
         }
         else
         {
+            if (device_sn_.id != TYPE_RADAR_NONE && device_sn_.id != lidar_type_)
+            {
+                if (DevSnFun)
+                    DevSnFun(device_sn_);
+                lidar_type_ = device_sn_.id;
+            }
+
             if (m_timerMs(0, 5000)) //timeout
             {
-                if (open_again_flag_)
+                if (device_sn_.id == TYPE_RADAR_NONE)
                 {
                     device_sn_.id = TYPE_RADAR_LD;
                     device_sn_.buff.clear();
                     if (DevSnFun)
                         DevSnFun(device_sn_);
                     lidar_type_ = device_sn_.id;
-                    open_again_flag_ = false;
                 }
                 init_info_flag_ = true;
             }
@@ -239,11 +243,24 @@ bool LPkg::find_init_info(unsigned char *data, int len)
                     }
                     cmd_buf_.erase(cmd_buf_.begin(), cmd_buf_.begin() + data_len + 5);
                     head_flag = TYPE_RADAR_NONE;
+                    // return true;
+                }
+                else if (cur_cmd == 0x02)
+                {
+                    if (cmd_buf_[4 + data_len] == and_check(cmd_buf_, data_len+4))
+                    {
+                        std::string s_SN((char *)&cmd_buf_[4], data_len);
+                        other_message = QString::fromStdString(device_sn_.buff) + "/" + QString::fromStdString(s_SN);
+                        device_sn_.id = TYPE_RADAR_LANHAI;
+                    }
+                    cmd_buf_.erase(cmd_buf_.begin(), cmd_buf_.begin() + data_len + 5);
+                    head_flag = TYPE_RADAR_NONE;
                     return true;
                 }
                 else
                 {
-                    cmd_buf_.clear();
+                    // cmd_buf_.clear();
+                    cmd_buf_.erase(cmd_buf_.begin(), cmd_buf_.begin() + data_len + 5);
                     head_flag = TYPE_RADAR_NONE;
                     return false;
                 }
@@ -516,7 +533,9 @@ bool LPkg::AssemblePacket()
 void LPkg::ToLaserData(std::vector<PointData> src)
 {
     int count = 0;
-    std::vector<PointData> out;
+    std::vector<std::vector<PointData>> out;
+    std::vector<PointData> new_club;
+
     std::unique_lock<std::mutex> lf(laser_data_mutex);
     memset(&laser_data_, 0, sizeof(laser_data_));
     if (src.size() > 600)
@@ -528,76 +547,102 @@ void LPkg::ToLaserData(std::vector<PointData> src)
     }
 
     is_frame_ready_ = true;
-    std::vector<PointData> out1, out2, out3, out4, out5, out6, out7, out8, out9, out10;
+
+    out.push_back(src);
     if ((filter_select & (filter_smooth & 0xffff)) != 0)
     {
         para_inf_.filter_type = FullScanFilter::FS_Smooth;
-        full_scan_filter_.filter(src, para_inf_, out1);
+        full_scan_filter_.filter(out.back(), para_inf_, new_club);
+        out.push_back(new_club);
+        new_club.clear();
         // qDebug() << "FS_Smooth";
     }
-    else
-    {
-        out1 = src;
-    }
+
     if ((filter_select & (filter_bilateral & 0xffff)) != 0)
     {
         para_inf_.filter_type = FullScanFilter::FS_Bilateral;
-        full_scan_filter_.filter(out1, para_inf_, out2);
+        full_scan_filter_.filter(out.back(), para_inf_, new_club);
+        out.push_back(new_club);
+        new_club.clear();
         // qDebug() << "FS_Bilateral";
     }
-    else
-    {
-        out2 = out1;
-    }
+
     if ((filter_select & (filter_tail & 0xffff)) != 0)
     {
         para_inf_.filter_type = FullScanFilter::FS_Tail;
-        full_scan_filter_.filter(out2, para_inf_, out3);
+        full_scan_filter_.filter(out.back(), para_inf_, new_club);
+        out.push_back(new_club);
+        new_club.clear();
         // qDebug() << "FS_Tail";
     }
-    else
-    {
-        out3 = out2;
-    }
+
     if ((filter_select & (filter_intensity & 0xffff)) != 0)
     {
         para_inf_.filter_type = FullScanFilter::FS_Intensity;
-        full_scan_filter_.filter(out3, para_inf_, out4);
+        full_scan_filter_.filter(out.back(), para_inf_, new_club);
+        out.push_back(new_club);
+        new_club.clear();
         // qDebug() << "FS_Intensity";
     }
-    else
-    {
-        out4 = out3;
-    }
+
     Tofbf tofbf(speed_);
-    out5 = ((filter_select & (filter_near & 0xffff)) != 0) ? tofbf.NearFilter(out4) : out4;
-    out6 = ((filter_select & (filter_noise & 0xffff)) != 0) ? tofbf.NoiseFilter(out5) : out5;
-    out7 = ((filter_select & (filter_tine & 0xffff)) != 0) ? tofbf.TineFilter(out6) : out6;
-    out8 = ((filter_select & (filter_wander & 0xffff)) != 0) ? tofbf.WanderFilter(out7) : out7;
-    out9 = ((filter_select & (filter_shadows & 0xffff)) != 0) ? tofbf.ShadowsFilter(out8) : out8;
-    out10 = ((filter_select & (filter_median & 0xffff)) != 0) ? tofbf.MedianFilter(out9) : out9;
-    out = out10;
+    if ((filter_select & (filter_near & 0xffff)) != 0)
+    {
+        new_club = tofbf.NearFilter(out.back());
+        out.push_back(new_club);
+        new_club.clear();
+    }
+    if ((filter_select & (filter_noise & 0xffff)) != 0)
+    {
+        new_club = tofbf.NoiseFilter(out.back());
+        out.push_back(new_club);
+        new_club.clear();
+    }
+    if ((filter_select & (filter_tine & 0xffff)) != 0)
+    {
+        new_club = tofbf.TineFilter(out.back());
+        out.push_back(new_club);
+        new_club.clear();
+    }
+    if ((filter_select & (filter_wander & 0xffff)) != 0)
+    {
+        new_club = tofbf.WanderFilter(out.back());
+        out.push_back(new_club);
+        new_club.clear();
+    }
+    if ((filter_select & (filter_shadows & 0xffff)) != 0)
+    {
+        new_club = tofbf.ShadowsFilter(out.back());
+        out.push_back(new_club);
+        new_club.clear();
+    }
+    if ((filter_select & (filter_median & 0xffff)) != 0)
+    {
+        new_club = tofbf.MedianFilter(out.back());
+        out.push_back(new_club);
+        new_club.clear();
+    }
 
     std::vector<W_DataScan> showData;
     uint64_t start_time = 0, end_time = 0;
-    for (size_t i = 0; i < out.size(); i++)
+    for (size_t i = 0; i < out.back().size(); i++)
     {
-        laser_data_.Angle[count] = ANGLED_TO_RADIAN(out[i].angle);
-        laser_data_.Distance[count] = out[i].distance;
-        laser_data_.confidence[count] = out[i].confidence;
+        laser_data_.Angle[count] = ANGLED_TO_RADIAN(out.back()[i].angle);
+        laser_data_.Distance[count] = out.back()[i].distance;
+        laser_data_.confidence[count] = out.back()[i].confidence;
 
         W_DataScan m_sData;
-        m_sData.angles_ = out[i].angle;
-        m_sData.ranges_ = out[i].distance;
-        m_sData.intensity_ = out[i].confidence;
+        m_sData.angles_ = out.back()[i].angle;
+        m_sData.ranges_ = out.back()[i].distance;
+        m_sData.intensity_ = out.back()[i].confidence;
         m_sData.speed = (uint16_t)speed_;
         showData.push_back(m_sData);
 
         count++;
     }
 
-    start_time = out.front().timeStamp;
-    end_time = out.back().timeStamp;
+    start_time = out.back().front().timeStamp;
+    end_time = out.back().back().timeStamp;
     // auto s_t = std::min_element(out.begin(), out.end(), [](PointData& a, PointData& b){ return a.timeStamp < b.timeStamp; });
     // auto e_t = std::max_element(out.begin(), out.end(), [](PointData& a, PointData& b){ return a.timeStamp < b.timeStamp; });
     // start_time = s_t->timeStamp;

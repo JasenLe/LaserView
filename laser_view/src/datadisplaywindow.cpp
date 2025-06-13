@@ -67,11 +67,14 @@ void DataDisplayWindow::contextMenuEvent(QContextMenuEvent *event)
 void DataDisplayWindow::InsertData(const QByteArray &data)
 {
     QMutexLocker lock(&insert_data_mutex);
+    int Barlen_now_s = outputLabel->verticalScrollBar()->value();
+    int Barlen_max_s = outputLabel->verticalScrollBar()->maximum();
+    int pageStep_s = outputLabel->verticalScrollBar()->pageStep();
     QTextDocument *document = outputLabel->document();
-    int rowCount = outputLabel->toPlainText().size() + data.size();
-    int maxRowNumber = 200000;//设定字符最大容量
+    uint64_t rowCount = outputLabel->toPlainText().size() + data.size()*3;
+    uint64_t maxRowNumber = 0x400 * 0x400 * 0x400;//设定字符最大容量
     if (Data_concatenation_flag)
-        maxRowNumber = 30000;
+        maxRowNumber = 0x8000;//30000
     if(rowCount > maxRowNumber)
     {
         int var_num = std::min(int(rowCount - maxRowNumber), (int)(outputLabel->toPlainText().size()));
@@ -99,7 +102,10 @@ void DataDisplayWindow::InsertData(const QByteArray &data)
             outputLabel->insertPlainText(str);
         }
         else
-            outputLabel->insertPlainText(data.toHex(' '));
+        {
+            // outputLabel->insertPlainText(" ");
+            outputLabel->insertPlainText(" "+data.toHex(' '));
+        }
     }
     else
     {
@@ -122,8 +128,8 @@ void DataDisplayWindow::InsertData(const QByteArray &data)
 
     int Barlen_now = outputLabel->verticalScrollBar()->value();
     int Barlen_max = outputLabel->verticalScrollBar()->maximum();
-
-    if (Barlen_now >= Barlen_max - 500)
+    int pageStep = outputLabel->verticalScrollBar()->pageStep();
+    if ((Barlen_max - Barlen_now) <= pageStep || (Barlen_max_s - Barlen_now_s) <= pageStep_s)
        outputLabel->moveCursor(QTextCursor::End);
 
     outputLabel->update();

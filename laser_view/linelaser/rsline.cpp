@@ -93,10 +93,125 @@ bool RSLine::CalcDistance(const Message &msg)
     }
     return true;
 }
+float RSLine::computePointCloudX(
+    float u,
+    float v,
+    float depth,
+    std::vector<float> param)
+{
+    float rd_x = (u - param[0]) / param[2];
+    float rd_y = (v - param[1]) / param[2];
+    float theta_d = std::sqrt(rd_x * rd_x + rd_y * rd_y);
+    float theta = theta_d;
+    for (int i = 0; i < 5; i++) {
+        float theta_2 = theta * theta;
+        float theta_4 = theta_2 * theta_2;
+        float f_theta = theta * (1.0 + param[3] * theta_2 + param[4] * theta_4) - theta_d;
+        float delta_f_theta = 1.0 + 3.0 * param[3] * theta_2 + 5.0 * param[4] * theta_4;
+        theta = theta - f_theta / delta_f_theta;
+    }
+    float r_x = rd_x / (theta_d + FLT_MIN) * std::tan(theta);
+
+    return r_x*(depth- param[5]);
+}
+
+bool RSLine::BCalcDistance(const Message& msg)
+{
+    if (msg.data_.size() == pointcloud_.size() * 2 + 3)
+    {
+        // for debug
+    }
+    else if (msg.data_.size() != pointcloud_.size() * 2)
+    {
+        return false;
+    }
+
+    uint8_t dev_idx = AddrToDevId(msg.addr_);
+
+    if (param_type_.size() <= dev_idx || param_type_[dev_idx] == 0)  // 无参数解析数据
+    {
+        // [0,9]位是深度数据，[10,12]是强度数据，[13,15]是角度分组下标
+        for (int i = 0; i < pointcloud_.size(); ++i)
+        {
+            uint16_t data = ((uint16_t)msg.data_[i * 2 + 1] << 8) | msg.data_[i * 2];
+            if ((data & 0x3FF) != 0)
+            {
+                pointcloud_[i].Y() = data & 0x3FF;
+                pointcloud_[i].X() = i;
+                pointcloud_[i].intensity() = (data >> 10) & 0x07;;
+            }
+            else
+            {
+                pointcloud_[i].Y() = 0;
+                pointcloud_[i].X() = 0;
+                pointcloud_[i].intensity() = 0;
+
+            }
+        }
+    }
+    else if (param_type_[dev_idx] == 1)  // 第一种标定参数计算
+    {
+        // [0,9]位是深度数据，[10,12]是强度数据，[13,15]是角度分组下标
+        for (int i = 0; i < pointcloud_.size(); ++i)
+        {
+            uint16_t data = ((uint16_t)msg.data_[i * 2 + 1] << 8) | msg.data_[i * 2];
+            if ((data & 0x3FF) != 0)
+            {
+                int angle_idx = data >> 13;
+                double c1 = Bparam_[dev_idx][4 * angle_idx + 0];
+                double c2 = Bparam_[dev_idx][4 * angle_idx + 1];
+                double c3 = Bparam_[dev_idx][4 * angle_idx + 2];
+                double c4 = Bparam_[dev_idx][4 * angle_idx + 3];
+                int n = (i / 3 * 4) + (i % 3) + 1 - c4;
+                int n_2 = n * n;
+                pointcloud_[i].Y() = data & 0x3FF;
+                pointcloud_[i].X() = (c1 * n) / (1 + c2 * n_2 + c3 * n_2 * n_2) * pointcloud_[i].Y();
+                pointcloud_[i].intensity() = (data >> 10) & 0x07;;
+            }
+            else
+            {
+                pointcloud_[i].Y() = 0;
+                pointcloud_[i].X() = 0;
+                pointcloud_[i].intensity() = 0;
+            }
+        }
+    }
+    else if (param_type_[dev_idx] == 2)  // 第二种标定参数计算
+    {
+        const std::vector<float>& dist_param = param_[dev_idx];
+        // [0,9]位是深度数据，[10,12]是强度数据，[13,15]是角度分组下标
+        for (int i = 0; i < pointcloud_.size(); ++i)
+        {
+            uint16_t data = ((uint16_t)msg.data_[i * 2 + 1] << 8) | msg.data_[i * 2];
+            if ((data & 0x3FF) != 0)
+            {
+                float vd = (v_start_[dev_idx] + (data >> 13) * v_gap_[dev_idx] + 15) / 2;
+                float ud = (i / 3 * 4) + (i % 3) + 1;
+                pointcloud_[i].Y() = data & 0x3FF;
+                pointcloud_[i].X() = computePointCloudX(ud, vd, pointcloud_[i].Y(),dist_param);
+                pointcloud_[i].intensity() = (data >> 10) & 0x07;
+            }
+            else
+            {
+                pointcloud_[i].Y() = 0;
+                pointcloud_[i].X() = 0;
+                pointcloud_[i].intensity() = 0;
+            }
+        }
+    }
+
+    return true;
+}
+
 bool RSLine::ConfigAddress(const Message &msg)
 {
     device_addr_ = msg.addr_;
-    param_.resize(AddrToDevCount(msg.addr_));
+    int device_num = AddrToDevCount(msg.addr_);
+    param_.resize(device_num);
+    Bparam_.resize(device_num);
+    param_type_.resize(device_num, 0);
+    v_start_.resize(device_num, 0);
+    v_gap_.resize(device_num, 0);
     return true;
 }
 
@@ -111,6 +226,38 @@ bool RSLine::ConfigParam(const Message &msg)
     param_[devID].assign(rev_param, rev_param + 6);
     return true;
 }
+
+bool RSLine::BConfigParam(const Message& msg)
+{
+    if (msg.data_.empty())
+    {
+        return false;
+    }
+    uint8_t dev_idx = AddrToDevId(msg.addr_);
+    if (msg.length_ == 32 * 8 + 2)
+    {
+        param_type_[dev_idx] = 1;
+        v_start_[dev_idx] = msg.offset_;
+        v_gap_[dev_idx] = msg.data_[0] + (msg.data_[1] << 8);
+        const double* rev_param = reinterpret_cast<const double*>(msg.data_.data() + 2);
+        Bparam_[dev_idx].assign(rev_param, rev_param + 32);
+    }
+    else if (msg.length_ == 6 * 4 + 2)
+    {
+        param_type_[dev_idx] = 2;
+        v_start_[dev_idx] = msg.offset_;
+        v_gap_[dev_idx] = msg.data_[0] + (msg.data_[1] << 8);
+        const float* rev_param = reinterpret_cast<const float*>(msg.data_.data() + 2);
+        param_[dev_idx].assign(rev_param, rev_param + 6);
+    }
+    else
+    {
+        param_type_[dev_idx] = 0;
+        return false;
+    }
+    return true;
+}
+
 void RSLine::TransformSignlePoint(const uint16_t dist, const int n, const uint8_t device_id)
 {
     pointcloud_[n].intensity() = (dist >> 12);
@@ -192,32 +339,38 @@ bool RSLine::LaserScanSendCMD(QSerialPort *serial, int addr, uint8_t cmd)
 
 bool RSLine::initLaserScan(QSerialPort *serial)
 {
-    LaserScanSendCMD(serial, 1, kCmdStop);
+    LaserScanSendCMD(serial, 1, RSCommand::CMD_STOP_MEASURE);
     MySleep(50);
 
     qDebug() << "initLaserScan kCmdAddress";
-    LaserScanSendCMD(serial, 0, kCmdAddress);
+    LaserScanSendCMD(serial, 0, RSCommand::CMD_SET_DEV_ADDR);
     MySleep(20);
-    LaserScanSendCMD(serial, 0, kCmdAddress);
+    LaserScanSendCMD(serial, 0, RSCommand::CMD_SET_DEV_ADDR);
+    MySleep(50);
+
+    qDebug() << "initLaserScan type";
+    LaserScanSendCMD(serial, 1, RSCommand::CMD_SET_GET_TYPE);
+    MySleep(20);
+    LaserScanSendCMD(serial, 1, RSCommand::CMD_SET_GET_TYPE);
     MySleep(50);
 
     qDebug() << "initLaserScan kCmdParam";
-    LaserScanSendCMD(serial, 1, kCmdParam);
+    LaserScanSendCMD(serial, 1, RSCommand::CMD_GET_PARAME);
     MySleep(20);
-    LaserScanSendCMD(serial, 1, kCmdParam);
+    LaserScanSendCMD(serial, 1, RSCommand::CMD_GET_PARAME);
     MySleep(50);
 
     qDebug() << "initLaserScan kCmdSN";
-    LaserScanSendCMD(serial, 1, kCmdSN);
+    LaserScanSendCMD(serial, 1, RSCommand::CMD_GET_SN);
     MySleep(20);
-    LaserScanSendCMD(serial, 1, kCmdSN);
+    LaserScanSendCMD(serial, 1, RSCommand::CMD_GET_SN);
     MySleep(50);
 
     qDebug() << "initLaserScan kCmdWave";
-    LaserScanSendCMD(serial, 1, kCmdWave);
+    LaserScanSendCMD(serial, 1, RSCommand::CMD_GET_WAVE);
     MySleep(50);
     qDebug() << "initLaserScan kCmdVersion";
-    LaserScanSendCMD(serial, 1,  kCmdVersion);
+    LaserScanSendCMD(serial, 1,  RSCommand::CMD_GET_VERSION);
     MySleep(50);
 
     return true;
@@ -226,12 +379,12 @@ bool RSLine::initLaserScan(QSerialPort *serial)
 bool RSLine::StartLaserScan(QSerialPort *serial)
 {
     last_time = getClockTime_ms();
-    return LaserScanSendCMD(serial, device_addr_, kCmdDistance);
+    return LaserScanSendCMD(serial, device_addr_, RSCommand::CMD_START_MEASURE);
 }
 
 bool RSLine::StopLaserScan(QSerialPort *serial)
 {
-    return LaserScanSendCMD(serial, device_addr_, kCmdStop);
+    return LaserScanSendCMD(serial, device_addr_, RSCommand::CMD_STOP_MEASURE);
 }
 
 void RSLine::DataParsing(const QByteArray &data)
@@ -255,47 +408,62 @@ bool RSLine::UnpackData(const uint8_t *data, size_t len)
             return -1;
         }
         //qDebug() << "cccccccccccccccccccc" << traverse_num << rev_data_.size();
-        if (msg.cmd_ == kCmdDistance)
+        switch(msg.cmd_)
         {
-            if(is_param_ready_)
+        case RSCommand::CMD_START_MEASURE:
+        {
+            bool nowReady = false;
+            if(is_param_ready_ != 255)
             {
-                if (CalcDistance(msg))
+                if (is_param_ready_ != XV90)
                 {
-                    std::unique_lock<std::mutex> lf(_mutex_LaserData);
-                    LaserDataScanData.clear();
-                    LineLaserDataScan data_temp;
-                    std::vector<W_DataScan> showData;
-                    for(size_t i = 0; i < pointcloud_.size(); i++)
-                    {
-                        data_temp.angles_ = -(float)atan2(pointcloud_[i].X(), pointcloud_[i].Y());
-                        data_temp.ranges_ = (float)hypot(pointcloud_[i].X(), pointcloud_[i].Y());
-                        if (intensity_need_)
-                            data_temp.intensity_ = (float)pointcloud_[i].intensity();
-                        else
-                            data_temp.intensity_ = 100;
-                        LaserDataScanData.push_back(data_temp);
-                        // qDebug() << data_temp.angles_ << data_temp.ranges_ << data_temp.intensity_;
-
-                        W_DataScan m_sData;
-                        m_sData.angles_ = data_temp.angles_*180/M_PI;
-                        m_sData.ranges_ = data_temp.ranges_;
-                        m_sData.intensity_ = data_temp.intensity_;
-                        m_sData.speed = (uint16_t)(1.0 /((getClockTime_ms() - last_time)/1000.0));
-                        showData.push_back(m_sData);
-                    }
-                    laserdatascan_reday = true;
-                    // qDebug() << "*********************************" << LaserDataScanData.size();
-                    if (!showData.empty())
-                    {
-                        if (DataFun != nullptr)
-                            DataFun(showData);
-                    }
-                    last_time = getClockTime_ms();
-                    lf.unlock();
+                    if (BCalcDistance(msg))
+                        nowReady = true;
+                }
+                else
+                {
+                    if (CalcDistance(msg))
+                        nowReady = true;
                 }
             }
+
+            if (nowReady)
+            {
+                std::unique_lock<std::mutex> lf(_mutex_LaserData);
+                LaserDataScanData.clear();
+                LineLaserDataScan data_temp;
+                std::vector<W_DataScan> showData;
+                for(size_t i = 0; i < pointcloud_.size(); i++)
+                {
+                    data_temp.angles_ = (float)atan2(pointcloud_[i].X(), pointcloud_[i].Y());
+                    data_temp.ranges_ = (float)hypot(pointcloud_[i].X(), pointcloud_[i].Y());
+                    if (intensity_need_)
+                        data_temp.intensity_ = (float)pointcloud_[i].intensity();
+                    else
+                        data_temp.intensity_ = 100;
+                    LaserDataScanData.push_back(data_temp);
+                    // qDebug() << data_temp.angles_ << data_temp.ranges_ << data_temp.intensity_;
+
+                    W_DataScan m_sData;
+                    m_sData.angles_ = data_temp.angles_*180/M_PI;
+                    m_sData.ranges_ = data_temp.ranges_;
+                    m_sData.intensity_ = data_temp.intensity_;
+                    m_sData.speed = (uint16_t)(1.0 /((getClockTime_ms() - last_time)/1000.0));
+                    showData.push_back(m_sData);
+                }
+                laserdatascan_reday = true;
+                // qDebug() << "*********************************" << LaserDataScanData.size();
+                if (!showData.empty())
+                {
+                    if (DataFun != nullptr)
+                        DataFun(showData);
+                }
+                last_time = getClockTime_ms();
+                lf.unlock();
+            }
         }
-        else if (msg.cmd_ == kCmdAddress)
+        break;
+        case RSCommand::CMD_SET_DEV_ADDR:
         {
             if (ConfigAddress(msg))
             {
@@ -305,30 +473,62 @@ bool RSLine::UnpackData(const uint8_t *data, size_t len)
                 qDebug() << "RS_linelaser ConfigAddress";
             }
         }
-        else if (msg.cmd_ == kCmdParam)
+        break;
+        case RSCommand::CMD_GET_PARAME:
         {
-            if (ConfigParam(msg))
+            if (RS_type != XV90)
             {
-                is_param_ready_ = true;
-                qDebug() << "RS_linelaser ConfigParam";
+                if (BConfigParam(msg))
+                {
+                    is_param_ready_ = RS_type;
+                    pointcloud_.resize(240);
+                    qDebug() << "RS_linelaser ConfigParam" << RS_type;
+                }
+            }
+            else
+            {
+                if (ConfigParam(msg))
+                {
+                    is_param_ready_ = XV90;
+                    pointcloud_.resize(160);
+                    qDebug() << "RS_linelaser ConfigParam" << RS_type;
+                }
             }
         }
-        else if (msg.cmd_ == kCmdStop)
+        break;
+        case RSCommand::CMD_STOP_MEASURE:
         {
             if (StopWork(msg))
             {
                 qDebug() << "RS_linelaser Stop";
             }
         }
-        else if (msg.cmd_ == kCmdWave)
+        break;
+        case RSCommand::CMD_GET_WAVE:
         {
             if(!msg.data_.empty())
             {
-                qDebug() << "RS_linelaser Wave:" <<  0x300+msg.data_.front();
                 if (!get_Wave)
                 {
+                    QString m_wave;
                     get_Wave = true;
-                    QString m_wave = QString::number(0x300+msg.data_.front());
+                    if (msg.data_.size() > 1)
+                    {
+                        uint64_t sD = 0;
+                        uint16_t sD_c = 0;
+                        for ( auto s:msg.data_ )
+                        {
+                            sD += s << sD_c*8;
+                            sD_c++;
+                        }
+                        m_wave = QString::number(sD);
+                        if (!other_message.isEmpty())
+                            other_message += "<br>";
+                    }
+                    else
+                        m_wave = QString::number(0x300+msg.data_.front());
+                    qDebug() << "RS_linelaser Wave:" <<  m_wave << msg.data_.size();
+
                     if (!other_message.isEmpty())
                         other_message += "<br>Vave: ";
                     else
@@ -337,7 +537,8 @@ bool RSLine::UnpackData(const uint8_t *data, size_t len)
                 }
             }
         }
-        else if (msg.cmd_ == kCmdVersion)
+        break;
+        case RSCommand::CMD_GET_VERSION:
         {
             if(!msg.data_.empty())
             {
@@ -354,32 +555,55 @@ bool RSLine::UnpackData(const uint8_t *data, size_t len)
                 }
             }
         }
-        else if (msg.cmd_ == kCmdSN)
+        break;
+        case RSCommand::CMD_GET_SN:
         {
             is_SN_ready_ = true;
             if (msg.data_.size() >= 8)
             {
                 lineSensorSn = *((uint64_t *)msg.data_.data());
-                if (lineSensorSn != 0xffffffffffffffff && lineSensorSn >= 530200000000000) //530300000000000
+                if (lineSensorSn != 0xffffffffffffffff /*&& lineSensorSn >= 530200000000000*/) //530300000000000
                 {
                     intensity_need_ = true;
                     QString qStr = QString::number(lineSensorSn);
                     if (RsDevSnFun != nullptr)
-                        RsDevSnFun(TYPE_LASER_RS_NEW, qStr);
+                    {
+                        if (RS_type != XV90)
+                            RsDevSnFun(TYPE_LASER_RS_XVB02, qStr);
+                        else
+                            RsDevSnFun(TYPE_LASER_RS_NEW, qStr);
+                    }
                 }
                 else
                 {
                     intensity_need_ = false;
                     if (RsDevSnFun != nullptr)
-                        RsDevSnFun(TYPE_LASER_RS, nullptr);
+                    {
+                        if (RS_type != XV90)
+                            RsDevSnFun(TYPE_LASER_RS_XVB02, nullptr);
+                        else
+                            RsDevSnFun(TYPE_LASER_RS, nullptr);
+                    }
                 }
                 qDebug() << "RS_linelaser SN:"<< lineSensorSn << Qt::hex << lineSensorSn << "size:" << msg.data_.size() << intensity_need_;
             }
         }
-        else
+        break;
+        case RSCommand::CMD_SET_GET_TYPE:
+        {
+            if(!msg.data_.empty())
+            {
+                RS_type = msg.data_.front();
+                qDebug() << "RS_linelaser TYPE:"<< msg.data_ << msg.data_.size();
+            }
+        }
+        break;
+        default:
         {
             // 扩展任务事件
             HandleElseTask(msg);
+        }
+        break;
         }
     }
     return true;

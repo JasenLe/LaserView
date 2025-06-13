@@ -15,8 +15,9 @@ bool YXLine::ParsingPackage(const uint8_t *data, size_t len)
     uint16_t sample_lens = 0;
     bool has_device_header = false;
     uint8_t  *packageBuffer = (uint8_t *)&package;
-    for (auto currentByte : data_buf_)
+    for ( ; recvPos < data_buf_.size(); )
     {
+        uint8_t currentByte = data_buf_[recvPos];
         switch (recvPos)
         {
         case 0:
@@ -53,7 +54,7 @@ bool YXLine::ParsingPackage(const uint8_t *data, size_t len)
             break;
 
         case 4:
-            if ((currentByte < YXLI_CMD_ADDRESS || currentByte > YXLI_CMD_SCAN) && currentByte != 1)
+            if ((currentByte < YXLI_CMD_ADDRESS || currentByte > YXLI_CMD_REBOOT) && currentByte != 1)
             {
                 data_buf_.erase(data_buf_.begin(), data_buf_.begin()+recvPos);
                 recvPos = 0;
@@ -93,6 +94,11 @@ bool YXLine::ParsingPackage(const uint8_t *data, size_t len)
                     original_parsing(package);
                     // qDebug() << "YXLI_CMD_SCAN ok";
                 }
+                else if (command == YXLI_CMD_STOP)
+                {
+                    LaserStauts = false;
+                    qDebug() << "YXLI_CMD_STOP ok";
+                }
                 else if (command == YXLI_CMD_ADDRESS)
                 {
                     qDebug() << "YXLI_CMD_ADDRESS ok";
@@ -129,7 +135,7 @@ bool YXLine::ParsingPackage(const uint8_t *data, size_t len)
             recvPos = 0;
             return true;
         }
-        else if (recvPos > (sample_lens + PackagePaidBytes + 1))
+        else if (recvPos > (sample_lens + PackagePaidBytes + 1) || sample_lens > 0x6000)
         {
             data_buf_.erase(data_buf_.begin(), data_buf_.begin()+recvPos);
             recvPos = 0;
@@ -239,12 +245,26 @@ bool YXLine::initLaserScan(QSerialPort *serial)
 bool YXLine::StartLaserScan(QSerialPort *serial)
 {
     mlast_time = getClockT_ms();
+    LaserStauts = true;
     return sendCmd(serial, YXLI_CMD_SCAN);
 }
 
 bool YXLine::StopLaserScan(QSerialPort *serial)
 {
-    return sendCmd(serial, YXLI_CMD_STOP);
+    int s = 0;
+
+    sendCmd(serial, YXLI_CMD_STOP);
+    while (++s <= 3)
+    {
+        if (!LaserStauts)
+            return true;
+
+        sendCmd(serial, YXLI_CMD_STOP);
+        MySleep(50);
+        qDebug() << "YX re send stop count: " << s;
+    }
+
+    return false;
 }
 
 void YXLine::DataParsing(const QByteArray &data)
@@ -254,5 +274,5 @@ void YXLine::DataParsing(const QByteArray &data)
     uint8_t *dataPtr = reinterpret_cast<uint8_t*>(m_data.data());
     // for (int i = 0; i < data_size; i++)
     //     qDebug() << Qt::hex << dataPtr[i];
-   ParsingPackage(dataPtr, data_size);
+    ParsingPackage(dataPtr, data_size);
 }

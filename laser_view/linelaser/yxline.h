@@ -61,19 +61,19 @@ public:
     YXLine();
     ~YXLine();
 
-    virtual bool initLaserScan(QSerialPort *serial);
-    virtual bool StartLaserScan(QSerialPort *serial);
-    virtual bool StopLaserScan(QSerialPort *serial);
-    virtual void DataParsing(const QByteArray &data);
-    virtual void setDeviceSnCallback(std::function<void(const TYPE_LASER_ type, QString sn)> callback)
+    bool initLaserScan(QSerialPort *serial) override;
+    bool StartLaserScan(QSerialPort *serial) override;
+    bool StopLaserScan(QSerialPort *serial) override;
+    void DataParsing(const QByteArray &data) override;
+    void setDeviceSnCallback(std::function<void(const TYPE_LASER_ type, QString sn)> callback) override
     {
         YxDevSnFun = callback;
     }
-    virtual void setDataCallback(std::function<void(std::vector<W_DataScan>)> callback)
+    void setDataCallback(std::function<void(std::vector<W_DataScan>)> callback) override
     {
         DataFun = callback;
     }
-    virtual QString GetOtherMessage()
+    QString GetOtherMessage() override
     {
         return other_message;
     }
@@ -113,6 +113,7 @@ private:
     uint8_t moduleNum{0};
     bool get_version{false};
     uint64_t mlast_time;
+    bool LaserStauts{false};
 };
 
 #endif // YXLINE_H

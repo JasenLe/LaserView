@@ -5,11 +5,13 @@
 #include "inc/radarscan.h"
 typedef enum
 {
-    TYPE_LASER_EAI = 0,//EAI
-    TYPE_LASER_RS = 1,//瑞识
-    TYPE_LASER_RS_NEW = 2,//瑞识
-    TYPE_LASER_YX = 3,//远行时空
-    TYPE_LASER_LD = 4,//乐动
+    TYPE_LASER_EAI = 0,//EAIwanzhishang
+    TYPE_LASER_RS = 1,//ruishi
+    TYPE_LASER_RS_NEW = 2,//ruishi
+    TYPE_LASER_RS_XVB02 = 3,
+    TYPE_LASER_YX = 4,//yuanxingshikong
+    TYPE_LASER_LD = 5,//ledong
+    TYPE_LASER_other = 6,
 
     TYPE_LASER_NONE = 255,
 }TYPE_LASER_;
@@ -17,6 +19,9 @@ typedef enum
 class LLSDK_BASE
 {
 public:
+    LLSDK_BASE() {};
+    virtual ~LLSDK_BASE() = default;
+
     virtual bool initLaserScan(QSerialPort *serial) = 0;
     virtual bool StartLaserScan(QSerialPort *serial) = 0;
     virtual bool StopLaserScan(QSerialPort *serial) = 0;

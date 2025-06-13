@@ -16,6 +16,53 @@
 #include <iostream>
 #include <QFileDialog>
 
+#define WIDGET  "Widget"
+#define WWIDTH  "width"
+#define WHEIGHT "height"
+
+#define P_COOR "Polar_coordinates"
+#define CWCCW  "p_flag"
+#define ROTATE "rot_angle"
+
+#define SEND   "Send"
+#define SDATA  "S_data"
+
+#define CONSOLE "Console"
+#define DEVICE  "device"
+#define BAND    "band"
+#define AUTOCLOCE "autoclose"
+#define TESTON    "TOn"
+#define TESTOFF   "TOff"
+#define LOCK      "lock"
+#define DATANUM   "datanum"
+
+#define BACKGROUND "backgrorund"
+#define BCOLOR "backgrorund color"
+#define CSCOLOR "CS bg color"
+
+#define INDICATORLINE "Indicator Line"
+#define LINEDIS       "distance"
+#define LINEANGLE     "angle"
+#define LINECONF      "confidence"
+#define LINECOLOR     "linecolor"
+
+#define PONITPIXEL "Point info"
+#define PPIXEL     "pixel"
+#define PCOLOR     "color"
+
+#define FLITER      "Filter"
+// #define FLITER_all  "Filter all"
+#define F_SMOOTH    "smooth"
+#define F_BILATERAL "bilateral"
+#define F_TAIL      "tail"
+#define F_INTENSITY "intensity"
+#define F_NEAR      "near"
+#define F_NOISE     "noise"
+#define F_TINE      "tine"
+#define F_WANDER    "wander"
+#define F_SHADOWS   "shadows"
+#define F_MEDIAN    "median"
+
 #define filter_smooth     0x0001
 #define filter_bilateral  0x0002
 #define filter_tail       0x0004
@@ -29,6 +76,13 @@
 
 #define A_TO_RAD(angle) ((angle)*M_PI / 180)
 #define RAD_TO_A(angle) ((angle)*180 / M_PI)
+
+enum SYB
+{
+    none = 0,
+    START = 1,
+    STANDBY = 2
+};
 
 struct W_DataScan
 {
@@ -65,4 +119,39 @@ struct H_file_data_
     QString open_file_Tips;
     int now_idx;
 };
+
+struct FILTER_S {
+    uint16_t _smooth:1;
+    uint16_t _bilateral:1;
+    uint16_t _tail:1;
+    uint16_t _intensity:1;
+    uint16_t _near:1;
+    uint16_t _noise:1;
+    uint16_t _tine:1;
+    uint16_t _wander:1;
+    uint16_t _shadows:1;
+    uint16_t _median:1;
+    uint16_t :1;
+
+    FILTER_S(){};
+    FILTER_S(uint16_t data)
+    {
+        *this = data;
+    }
+    FILTER_S &operator=(uint16_t data)
+    {
+        this->_smooth = (bool)(data & filter_smooth);
+        this->_bilateral = (bool)(data & filter_bilateral);
+        this->_tail = (bool)(data & filter_tail);
+        this->_intensity = (bool)(data & filter_intensity);
+        this->_near = (bool)(data & filter_near);
+        this->_noise = (bool)(data & filter_noise);
+        this->_tine = (bool)(data & filter_tine);
+        this->_wander = (bool)(data & filter_wander);
+        this->_shadows = (bool)(data & filter_shadows);
+        this->_median = (bool)(data & filter_median);
+
+        return *this;
+    };
+} __attribute__((packed));
 #endif // RADARSCAN_H

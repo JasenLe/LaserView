@@ -13,12 +13,15 @@ LLSDK::LLSDK()
                                         laser_type = TYPE_LASER_RS;
                                     else if (type == TYPE_LASER_RS_NEW)
                                         laser_type = TYPE_LASER_RS_NEW;
+                                    else if (type == TYPE_LASER_RS_XVB02)
+                                        laser_type = TYPE_LASER_RS_XVB02;
                                     else
                                         laser_type = TYPE_LASER_EAI;
                                 });
     RSllaser.setDataCallback([this](std::vector<W_DataScan> data)
                              {
-                                if (laser_type == TYPE_LASER_RS_NEW || laser_type == TYPE_LASER_RS)
+                                if (laser_type == TYPE_LASER_RS_NEW || laser_type == TYPE_LASER_RS
+                                    || laser_type == TYPE_LASER_RS_XVB02)
                                 {
                                     if (DataFun != nullptr)
                                     {
@@ -100,7 +103,8 @@ bool LLSDK::initLaserScan(QSerialPort *serial)
     if (laser_type == TYPE_LASER_YX || laser_type == TYPE_LASER_NONE)
         YXllaser.initLaserScan(serial);
 
-    if (laser_type == TYPE_LASER_RS || laser_type == TYPE_LASER_RS_NEW || laser_type == TYPE_LASER_NONE)
+    if (laser_type == TYPE_LASER_RS || laser_type == TYPE_LASER_RS_NEW
+        || laser_type == TYPE_LASER_RS_XVB02 || laser_type == TYPE_LASER_NONE)
         RSllaser.initLaserScan(serial);
 
     if (laser_type == TYPE_LASER_EAI || laser_type == TYPE_LASER_NONE)
@@ -115,7 +119,8 @@ bool LLSDK::initLaserScan(QSerialPort *serial)
 bool LLSDK::StartLaserScan(QSerialPort *serial)
 {
     bool res = false;
-    if (laser_type == TYPE_LASER_RS || laser_type == TYPE_LASER_RS_NEW)
+    if (laser_type == TYPE_LASER_RS || laser_type == TYPE_LASER_RS_NEW
+        || laser_type == TYPE_LASER_RS_XVB02)
         res = RSllaser.StartLaserScan(serial);
     else if(laser_type == TYPE_LASER_EAI)
         res = EAIllaser.StartLaserScan(serial);
@@ -130,7 +135,8 @@ bool LLSDK::StartLaserScan(QSerialPort *serial)
 bool LLSDK::StopLaserScan(QSerialPort *serial)
 {
     bool res = false;
-    if (laser_type == TYPE_LASER_RS || laser_type == TYPE_LASER_RS_NEW)
+    if (laser_type == TYPE_LASER_RS || laser_type == TYPE_LASER_RS_NEW
+        || laser_type == TYPE_LASER_RS_XVB02)
         res = RSllaser.StopLaserScan(serial);
     else if(laser_type == TYPE_LASER_EAI)
         res = EAIllaser.StopLaserScan(serial);
@@ -149,7 +155,8 @@ void LLSDK::DataParsing(const QByteArray &data)
         EAIllaser.DataParsing(data);
     }
 
-    if (laser_type == TYPE_LASER_RS || laser_type == TYPE_LASER_RS_NEW || laser_type == TYPE_LASER_NONE)
+    if (laser_type == TYPE_LASER_RS || laser_type == TYPE_LASER_RS_NEW
+        || laser_type == TYPE_LASER_RS_XVB02 || laser_type == TYPE_LASER_NONE)
     {
         RSllaser.DataParsing(data);
     }

@@ -16,6 +16,9 @@ SOURCES += \
     linelaser/llsdk.cpp \
     linelaser/rsline.cpp \
     linelaser/yxline.cpp \
+    radar/BZbase/lidar_protocol.cpp \
+    radar/HCbase/hchead.cpp \
+    radar/HCbase/hclidar.cpp \
     radar/fullscanfilter.cpp \
     radar/lpkg.cpp \
     radar/morefilter.cpp \
@@ -39,6 +42,10 @@ HEADERS += \
     linelaser/rsline.h \
     linelaser/rsline_tool.h \
     linelaser/yxline.h \
+    radar/BZbase/lidar_protocol.h \
+    radar/HCbase/HcData.h \
+    radar/HCbase/hchead.h \
+    radar/HCbase/hclidar.h \
     radar/fullscanfilter.h \
     radar/lpkg.h \
     radar/morefilter.h \

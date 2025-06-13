@@ -82,20 +82,20 @@ public:
     EAILine();
     ~EAILine();
 
-    virtual bool initLaserScan(QSerialPort *serial);
-    virtual bool StartLaserScan(QSerialPort *serial);
-    virtual bool StopLaserScan(QSerialPort *serial);
-    virtual void DataParsing(const QByteArray &data);
+    bool initLaserScan(QSerialPort *serial) override;
+    bool StartLaserScan(QSerialPort *serial) override;
+    bool StopLaserScan(QSerialPort *serial) override;
+    void DataParsing(const QByteArray &data) override;
 
-    virtual void setDeviceSnCallback(std::function<void(const TYPE_LASER_ type, QString sn)> callback)
+    void setDeviceSnCallback(std::function<void(const TYPE_LASER_ type, QString sn)> callback) override
     {
         EAIDevSnFun = callback;
     };
-    virtual void setDataCallback(std::function<void(std::vector<W_DataScan>)> callback)
+    void setDataCallback(std::function<void(std::vector<W_DataScan>)> callback) override
     {
         DataFun = callback;
     }
-    virtual QString GetOtherMessage()
+    QString GetOtherMessage() override
     {
         return other_message;
     }

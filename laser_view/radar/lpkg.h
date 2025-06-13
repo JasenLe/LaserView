@@ -39,12 +39,15 @@ enum
 
 typedef enum
 {
-    TYPE_RADAR_LD = 0,//乐动
-    TYPE_RADAR_AOBI = 1,//奥比MS200
-    TYPE_RADAR_LANHAI = 2,//蓝海
-    TYPE_RADAR_GW = 3,//光为
-    TYPE_RADAR_AOBIK = 4,//奥比MS200K
-    TYPE_RADAR_BZ = 5,//不止
+    TYPE_RADAR_LD = 0,//ledong
+    TYPE_RADAR_AOBI = 1,//aobiMS200
+    TYPE_RADAR_LANHAI = 2,//lanhai
+    TYPE_RADAR_GW = 3,//guangwei
+    TYPE_RADAR_AOBIK = 4,//aobiMS200K
+    TYPE_RADAR_BZ = 5,//buzhi
+    TYPE_RADAR_HC = 6,//huanchuang
+    TYPE_RADAR_DBZ = 7,//Dbuzhi
+    TYPE_RADAR_other = 8,
 
     TYPE_RADAR_NONE = 255,
 }TYPE_RADAR_;
@@ -52,7 +55,7 @@ typedef enum
 typedef struct device_sn_st
 {
     std::string buff;
-    TYPE_RADAR_ id{TYPE_RADAR_LD};
+    TYPE_RADAR_ id{TYPE_RADAR_NONE};
 }device_sn_t;
 
 typedef struct __attribute__((packed))
@@ -268,7 +271,6 @@ private:
     std::vector<uint8_t> cmd_buf_;
     device_sn_t device_sn_;
     bool init_info_flag_{true};
-    bool open_again_flag_{false};
     bool close_again_flag_{false};
 
     const int kPointFrequence = 4500;
@@ -284,7 +286,7 @@ private:
     std::mutex laser_data_mutex;
     Extern_Laser_Data laser_data_;
 
-    TYPE_RADAR_ lidar_type_ = TYPE_RADAR_LD;
+    TYPE_RADAR_ lidar_type_{TYPE_RADAR_NONE};
     FullScanFilter full_scan_filter_;
     FilterPara para_inf_;
     uint16_t filter_select{0x01};

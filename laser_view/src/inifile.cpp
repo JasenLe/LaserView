@@ -259,48 +259,6 @@ bool IniFileSTL::WriteFile( void )
     return true;
 }
 
-int IniFileSTL::ReadInt( const string &section, const string &key, int value )
-{
-    string str = ReadString( section, key, "" );
-    if( "" == str )
-    {
-        return value;
-    }
-
-    std::istringstream in( str.c_str() );
-    int ret = 0;
-    in>>ret;
-    return ret;
-}
-float IniFileSTL::ReadFloat( const string &section, const string &key, float value )
-{
-    string str = ReadString( section, key, "" );
-    if( "" == str )
-    {
-        return value;
-    }
-
-    std::istringstream in( str.c_str() );
-    float ret = 0;
-    in>>ret;
-    return ret;
-}
-
-bool IniFileSTL::WriteInt( const string &section, const string &key, int value )
-{
-    std::stringstream out;
-    out<<value;
-    std::string str = out.str();
-    return WriteString( section, key, str.c_str() );
-}
-bool IniFileSTL::WriteFloat( const string &section, const string &key, float value )
-{
-    std::stringstream out;
-    out<<value;
-    std::string str = out.str();
-    return WriteString( section, key, str.c_str() );
-}
-
 string IniFileSTL::LTrim( const string &str )
 {
     size_t pos = 0;
